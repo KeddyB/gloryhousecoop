@@ -281,7 +281,7 @@ export default function MemberProfile() {
 
           {/* Navigation Tabs */}
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="w-full h-auto bg-gray-100 rounded-full p-1.5 mb-8 flex items-center justify-between">
+            <TabsList className="w-full h-auto bg-gray-100 rounded-full p-4 mb-8 flex items-center justify-between">
               {[
                 { value: "overview", icon: Activity, label: "Overview" },
                 { value: "personal", icon: User, label: "Personal" },
@@ -294,7 +294,7 @@ export default function MemberProfile() {
                 <TabsTrigger 
                   key={tab.value}
                   value={tab.value}
-                  className="rounded-full px-3 py-1.5 data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm text-muted-foreground text-xs font-medium transition-all inline-flex items-center justify-center gap-1.5 h-9 mx-1"
+                  className="rounded-full px-3 py-1 data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm text-muted-foreground text-xs font-medium transition-all inline-flex items-center justify-center gap-1.5 h-11 mx-8"
                 >
                   <tab.icon className="h-3.5 w-3.5" /> {tab.label}
                 </TabsTrigger>
