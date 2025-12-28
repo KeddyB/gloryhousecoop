@@ -45,37 +45,39 @@ import {
 } from "lucide-react"
 import { createClient } from '@/utils/supabase/client'
 import { Skeleton } from "@/components/ui/skeleton"
+import { EditProfileDialog } from "@/components/edit-profile-dialog"
 
 export default function MemberProfile() {
   const router = useRouter()
   const { id } = router.query
   const [member, setMember] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
   const supabase = createClient()
 
-  useEffect(() => {
-    async function fetchMember() {
-      if (!id) return
+  async function fetchMember() {
+    if (!id) return
 
-      try {
-        const { data, error } = await supabase
-          .from('members')
-          .select('*')
-          .eq('member_id', id)
-          .single()
+    try {
+      const { data, error } = await supabase
+        .from('members')
+        .select('*')
+        .eq('member_id', id)
+        .single()
 
-        if (error) {
-          console.error('Error fetching member:', error)
-        } else {
-          setMember(data)
-        }
-      } catch (error) {
-        console.error('Unexpected error:', error)
-      } finally {
-        setLoading(false)
+      if (error) {
+        console.error('Error fetching member:', error)
+      } else {
+        setMember(data)
       }
+    } catch (error) {
+      console.error('Unexpected error:', error)
+    } finally {
+      setLoading(false)
     }
+  }
 
+  useEffect(() => {
     fetchMember()
   }, [id])
 
@@ -179,7 +181,7 @@ export default function MemberProfile() {
                 <p className="text-sm text-muted-foreground">Complete member information and activity history</p>
               </div>
             </div>
-            <Button className="bg-black text-white hover:bg-black/90">
+            <Button className="bg-black text-white hover:bg-black/90" onClick={() => setEditDialogOpen(true)}>
               <Edit className="mr-2 h-4 w-4" /> Edit Profile
             </Button>
           </div>
@@ -709,6 +711,14 @@ export default function MemberProfile() {
           </div>
 
         </div>
+
+        {/* Edit Profile Dialog */}
+        <EditProfileDialog
+            member={member}
+            open={editDialogOpen}
+            onOpenChange={setEditDialogOpen}
+            onSuccess={fetchMember}
+        />
       </div>
     </div>
   )
