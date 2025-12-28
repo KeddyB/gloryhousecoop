@@ -34,6 +34,7 @@ export function Sidebar() {
   const supabase = createClient()
   const [expandedItems, setExpandedItems] = useState<string[]>(["Dashboard"])
   const [isOpen, setIsOpen] = useState(true)
+  const [user, setUser] = useState<any>(null)
 
   // Automatically expand the section if a submenu item is active
   useEffect(() => {
@@ -45,6 +46,15 @@ export function Sidebar() {
       }
     })
   }, [pathname])
+
+  // Fetch current user
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+    }
+    getUser()
+  }, [])
 
   const toggleExpand = (item: string) => {
     setExpandedItems((prev) => (prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]))
@@ -60,7 +70,8 @@ export function Sidebar() {
       id: "Dashboard",
       label: "Dashboard",
       icon: LayoutGrid,
-      submenu: [{ label: "Overview", icon: Eye, href: "/dashboard/overview" }],
+      href: "/dashboard",
+      // No submenu for direct link
     },
     {
       id: "Members",
@@ -95,17 +106,13 @@ export function Sidebar() {
         { label: "Loan Report and Analysis", icon: FileText, href: "/loans/report-analysis" },
       ],
     },
-    {
-      id: "Reports",
-      label: "Reports",
-      icon: BarChart3,
-      submenu: [{ label: "All Reports", icon: FileText, href: "/reports/all" }],
-    },
+    // Reports removed
     {
       id: "Settings",
       label: "Settings",
       icon: Settings,
-      submenu: [{ label: "App Settings", icon: Sliders, href: "/settings/app-settings" }],
+      href: "/settings",
+      // No submenu
     },
   ]
 
@@ -137,6 +144,27 @@ export function Sidebar() {
       <nav className={`flex-1 overflow-y-auto ${isOpen ? "p-4 space-y-2" : "p-2 space-y-2"}`}>
         {menuItems.map((item) => {
           const Icon = item.icon
+          
+          // Handle direct links (no submenu)
+          if (!item.submenu) {
+             const isActive = pathname === item.href
+             return (
+              <Link
+                key={item.id}
+                href={item.href || "#"}
+                className={cn(
+                  `w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium hover:bg-accent transition-colors`,
+                  !isOpen && "justify-center",
+                  isActive ? "text-primary bg-accent" : "text-foreground"
+                )}
+              >
+                <Icon className="h-5 w-5 flex-shrink-0" />
+                {isOpen && <span className="flex-1 text-left">{item.label}</span>}
+              </Link>
+             )
+          }
+
+          // Handle submenus
           const isExpanded = expandedItems.includes(item.id)
           const isActiveGroup = item.submenu?.some((sub) => sub.href === pathname)
 
@@ -191,11 +219,17 @@ export function Sidebar() {
       {/* Footer */}
       <div className="border-t border-border p-4 space-y-3">
         <div className={`flex items-center ${isOpen ? "gap-3" : "justify-center"}`}>
-          <div className="w-8 h-8 rounded-full bg-gray-300 flex-shrink-0" />
+          <div className="w-8 h-8 rounded-full bg-gray-300 flex-shrink-0 flex items-center justify-center text-xs">
+            {user ? (user.user_metadata?.full_name?.[0] || user.email?.[0] || 'U').toUpperCase() : ''}
+          </div>
           {isOpen && (
             <div>
-              <p className="text-sm font-medium text-foreground">Admin User</p>
-              <p className="text-xs text-muted-foreground">admin</p>
+              <p className="text-sm font-medium text-foreground">
+                {user?.user_metadata?.full_name || user?.user_metadata?.name || 'User'}
+              </p>
+              <p className="text-xs text-muted-foreground truncate w-40">
+                {user?.email}
+              </p>
             </div>
           )}
         </div>
