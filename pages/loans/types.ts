@@ -4,6 +4,7 @@ export type LoanState =
   | "pending"
   | "approved"
   | "rejected"
+  | "active"
   | "disbursed"
   | "repaid";
 
@@ -23,4 +24,18 @@ export interface Loan {
   state: LoanState;
   created_at?: string;
   member?: Partial<Member>;
+  disbursements?: Disbursement[];
+}
+
+export interface Disbursement {
+  id?: string;
+  loan_id: string;
+  disbursement_amount: number;
+  method: string;
+  bank_account: string;
+  disbursed_by: string;
+  disbursed_by_name?: string;
+  notes?: string;
+  created_at?: string;
+  loan?: Loan;
 }
