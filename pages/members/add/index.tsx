@@ -150,7 +150,7 @@ function AddMemberForm() {
           nominee_phone: formData.nominee_phone || null,
           account_number: formData.account_number,
           bank_name: formData.bank_name,
-          status: 'active',
+          status: 'inactive', // Default status is now inactive
         }])
         .select()
         .single();

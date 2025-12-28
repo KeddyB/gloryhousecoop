@@ -1,14 +1,48 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { KpiCard } from "@/components/kpi-card"
 import { InterestFeeChart } from "@/components/interest-fee-chart"
 import { LoanStatusChart } from "@/components/loan-status-chart"
 import { RecentTransactions } from "@/components/recent-transactions"
 import { NewApplications } from "@/components/new-applications"
 import { QuickActions } from "@/components/quick-actions"
-import { Calendar } from "lucide-react"
+import { createClient } from "@/utils/supabase/client"
 
 export function DashboardContent() {
+  const [totalMembers, setTotalMembers] = useState("...")
+  const [newMembersText, setNewMembersText] = useState("...")
+  
+  useEffect(() => {
+    const fetchStats = async () => {
+      const supabase = createClient()
+      
+      // Get total members
+      const { count: totalCount } = await supabase
+        .from('members')
+        .select('*', { count: 'exact', head: true })
+      
+      if (totalCount !== null) {
+        setTotalMembers(totalCount.toString())
+      }
+
+      // Get new members this month
+      const now = new Date()
+      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+      
+      const { count: newCount } = await supabase
+        .from('members')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', firstDayOfMonth)
+
+      if (newCount !== null) {
+        setNewMembersText(`+${newCount} new this month`)
+      }
+    }
+
+    fetchStats()
+  }, [])
+
   return (
     <main className="flex-1 overflow-y-auto bg-background">
       <div className="p-8">
@@ -18,15 +52,11 @@ export function DashboardContent() {
             <h1 className="text-3xl font-bold text-foreground mb-2">Dashboard</h1>
             <p className="text-muted-foreground">Welcome back, Here's your society overview</p>
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Calendar className="h-4 w-4" />
-            Last Updated : 15th December 2025
-          </div>
         </div>
 
         {/* KPI Cards */}
         <div className="grid grid-cols-4 gap-6 mb-8">
-          <KpiCard title="Total Members" value="120" change="+12 new this month" icon="users" />
+          <KpiCard title="Total Members" value={totalMembers} change={newMembersText} icon="users" />
           <KpiCard title="Interest Monthly Fees" value="N154,600" change="+16% from last month" icon="wallet" />
           <KpiCard title="Active Loans" value="25" change="12.5M total amount" icon="briefcase" />
           <KpiCard title="Total Profit" value="N1.25M" change="+22% this month" icon="trending" />
