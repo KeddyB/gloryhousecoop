@@ -4,3 +4,4 @@ APP_OVERVIEW.md
 .env*
 package-lock.json
 node_modules
+.idea/
