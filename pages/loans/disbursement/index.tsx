@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -492,151 +493,154 @@ export default function DisbursementPage() {
         </div>
       </div>
 
-      {/* Disburse Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent
           className={cn(
             "sm:max-w-xl p-0 overflow-hidden border-none shadow-2xl rounded-4xl bg-white font-sans",
             "animate-in fade-in zoom-in-95 duration-300",
-            "max-h-[90vh]"
+            "max-h-[80vh]"
           )}
         >
-          <div className="p-10 space-y-8">
-            <DialogHeader>
-              <DialogTitle className="text-xl font-medium tracking-tight text-gray-900 border-none">
-                Disburse Loan
-              </DialogTitle>
-            </DialogHeader>
+          <ScrollArea className="max-h-[80vh]">
+            <div className="p-10 space-y-4">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-medium tracking-tight text-gray-900 border-none">
+                  Disburse Loan
+                </DialogTitle>
+              </DialogHeader>
 
-            {selectedLoan && (
-              <div className="space-y-8">
-                {/* Info Card */}
-                <Card className="bg-gray-50/30 border border-gray-100/50 rounded-2xl shadow-none">
-                  <CardContent className="p-8 grid grid-cols-2 gap-x-12 gap-y-8">
-                    <div className="space-y-1.5">
-                      <p className="text-[13px] font-medium text-gray-400">
-                        Member
-                      </p>
-                      <p className="text-lg font-semibold text-gray-900 leading-none">
-                        {selectedLoan.member?.full_name ||
-                          selectedLoan.member?.name}
-                      </p>
+              {selectedLoan && (
+                <div className="space-y-4">
+                  {/* Info Card */}
+                  <Card className="bg-gray-50/30 border border-gray-100/50 rounded-2xl shadow-none">
+                    <CardContent className="p-4 grid grid-cols-2 gap-x-12 gap-y-6">
+                      <div className="space-y-1.5">
+                        <p className="text-[13px] font-medium text-gray-400">
+                          Member
+                        </p>
+                        <p className="text-lg font-semibold text-gray-900 leading-none">
+                          {selectedLoan.member?.full_name ||
+                            selectedLoan.member?.name}
+                        </p>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <p className="text-[13px] font-medium text-gray-400">
+                          Loan Amount
+                        </p>
+                        <p className="text-lg font-semibold text-gray-900 leading-none">
+                          ₦{selectedLoan.loan_amount.toLocaleString()}
+                        </p>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <p className="text-[13px] font-medium text-gray-400">
+                          Interest Rate
+                        </p>
+                        <p className="text-lg font-semibold text-gray-900 leading-none">
+                          {selectedLoan.interest_rate}%
+                        </p>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <p className="text-[13px] font-medium text-gray-400">
+                          Bank Account
+                        </p>
+                        <p className="text-lg font-semibold text-gray-900 leading-none">
+                          {selectedLoan.member?.account_number} -{" "}
+                          {selectedLoan.member?.bank_name}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Form Inputs */}
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2.5">
+                      <label className="text-[15px] font-semibold text-gray-900 ml-0.5">
+                        Disbursement Amount
+                      </label>
+                      <div className="relative">
+                        <Input
+                          value={disbursementAmount}
+                          onChange={(e) =>
+                            setDisbursementAmount(e.target.value)
+                          }
+                          className="bg-[#F4F4F4] border-none text-[15px] font-medium rounded-xl focus-visible:ring-1 ring-gray-200"
+                          placeholder="N0.00"
+                        />
+                      </div>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <p className="text-[13px] font-medium text-gray-400">
-                        Loan Amount
-                      </p>
-                      <p className="text-lg font-semibold text-gray-900 leading-none">
-                        ₦{selectedLoan.loan_amount.toLocaleString()}
-                      </p>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <p className="text-[13px] font-medium text-gray-400">
-                        Interest Rate
-                      </p>
-                      <p className="text-lg font-semibold text-gray-900 leading-none">
-                        {selectedLoan.interest_rate}%
-                      </p>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <p className="text-[13px] font-medium text-gray-400">
-                        Bank Account
-                      </p>
-                      <p className="text-lg font-semibold text-gray-900 leading-none">
-                        {selectedLoan.member?.account_number} -{" "}
-                        {selectedLoan.member?.bank_name}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Form Inputs */}
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2.5">
-                    <label className="text-[15px] font-semibold text-gray-900 ml-0.5">
-                      Disbursement Amount
-                    </label>
-                    <div className="relative">
-                      <Input
-                        value={disbursementAmount}
-                        onChange={(e) => setDisbursementAmount(e.target.value)}
-                        className="bg-[#F4F4F4] border-none h-14 text-[15px] font-medium rounded-xl focus-visible:ring-1 ring-gray-200"
-                        placeholder="N0.00"
-                      />
+                    <div className="space-y-2.5">
+                      <label className="text-[15px] font-semibold text-gray-900 ml-0.5">
+                        Disbursement Method
+                      </label>
+                      <Select
+                        value={disbursementMethod}
+                        onValueChange={setDisbursementMethod}
+                      >
+                        <SelectTrigger className="bg-[#F4F4F4] border-none h-14 text-[15px] font-medium rounded-xl focus:ring-1 ring-gray-200">
+                          <SelectValue placeholder="Select method" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-gray-100 shadow-xl">
+                          <SelectItem
+                            value="Bank Transfer"
+                            className="text-[15px]"
+                          >
+                            Bank Transfer
+                          </SelectItem>
+                          <SelectItem value="Cash" className="text-[15px]">
+                            Cash
+                          </SelectItem>
+                          <SelectItem
+                            value="Mobile Transfer"
+                            className="text-[15px]"
+                          >
+                            Mobile Transfer
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
                   <div className="space-y-2.5">
                     <label className="text-[15px] font-semibold text-gray-900 ml-0.5">
-                      Disbursement Method
+                      Notes* (Optional)
                     </label>
-                    <Select
-                      value={disbursementMethod}
-                      onValueChange={setDisbursementMethod}
+                    <Textarea
+                      placeholder="Add any notes about the disbursement..."
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      className="bg-[#F4F4F4] border-none min-h-[110px] text-[15px] font-medium rounded-2xl resize-none py-4 px-5 focus-visible:ring-1 ring-gray-200 placeholder:text-gray-400"
+                    />
+                  </div>
+
+                  {/* Footer Buttons */}
+                  <div className="flex justify-end gap-4 pt-4">
+                    <Button
+                      variant="outline"
+                      className="h-12 px-8 border-gray-200 text-[15px] font-semibold rounded-xl hover:bg-gray-50 active:scale-95 transition-all w-32"
+                      onClick={() => setIsModalOpen(false)}
                     >
-                      <SelectTrigger className="bg-[#F4F4F4] border-none h-14 text-[15px] font-medium rounded-xl focus:ring-1 ring-gray-200">
-                        <SelectValue placeholder="Select method" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-gray-100 shadow-xl">
-                        <SelectItem
-                          value="Bank Transfer"
-                          className="text-[15px]"
-                        >
-                          Bank Transfer
-                        </SelectItem>
-                        <SelectItem value="Cash" className="text-[15px]">
-                          Cash
-                        </SelectItem>
-                        <SelectItem
-                          value="Mobile Transfer"
-                          className="text-[15px]"
-                        >
-                          Mobile Transfer
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
+                      Cancel
+                    </Button>
+                    <Button
+                      className="h-12 px-8 bg-black hover:bg-black/90 text-white text-[15px] font-semibold rounded-xl active:scale-95 transition-all min-w-[200px]"
+                      onClick={handleConfirmDisbursement}
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        "Confirm Disbursement"
+                      )}
+                    </Button>
                   </div>
                 </div>
-
-                <div className="space-y-2.5">
-                  <label className="text-[15px] font-semibold text-gray-900 ml-0.5">
-                    Notes* (Optional)
-                  </label>
-                  <Textarea
-                    placeholder="Add any notes about the disbursement..."
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    className="bg-[#F4F4F4] border-none min-h-[110px] text-[15px] font-medium rounded-2xl resize-none py-4 px-5 focus-visible:ring-1 ring-gray-200 placeholder:text-gray-400"
-                  />
-                </div>
-
-                {/* Footer Buttons */}
-                <div className="flex justify-end gap-4 pt-4">
-                  <Button
-                    variant="outline"
-                    className="h-12 px-8 border-gray-200 text-[15px] font-semibold rounded-xl hover:bg-gray-50 active:scale-95 transition-all w-32"
-                    onClick={() => setIsModalOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    className="h-12 px-8 bg-black hover:bg-black/90 text-white text-[15px] font-semibold rounded-xl active:scale-95 transition-all min-w-[200px]"
-                    onClick={handleConfirmDisbursement}
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                      "Confirm Disbursement"
-                    )}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </div>
