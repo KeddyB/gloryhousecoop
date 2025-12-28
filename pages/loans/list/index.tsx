@@ -22,27 +22,18 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Wallet,
-  Search,
-  Eye,
-  Plus,
-  Loader2,
-  Filter,
-  ArrowRight,
-  TrendingUp,
-  Clock,
-} from "lucide-react";
+import { Wallet, Search, Plus, Filter, TrendingUp, Clock } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/use-toast";
+import { Loan } from "../types";
 
 export default function LoanListPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [loans, setLoans] = useState<any[]>([]);
+  const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
@@ -81,7 +72,8 @@ export default function LoanListPage() {
 
   useEffect(() => {
     fetchLoans();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supabase, toast]);
 
   const filteredLoans = loans.filter((loan) => {
     // 1. Filter by status
@@ -157,7 +149,7 @@ export default function LoanListPage() {
             <Card className="border-none shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground tracking-wide uppercase">
-                  Pending Approval
+                  Pending Disbursement
                 </CardTitle>
                 <Clock className="h-4 w-4 text-yellow-500" />
               </CardHeader>
@@ -330,13 +322,21 @@ export default function LoanListPage() {
                           <TableCell className="py-4 text-center pr-6">
                             <div className="flex flex-col items-center">
                               <span className="text-sm font-medium">
-                                {new Date(loan.created_at).toLocaleDateString()}
+                                {loan.created_at
+                                  ? new Date(
+                                      loan.created_at
+                                    ).toLocaleDateString()
+                                  : "N/A"}
                               </span>
                               <span className="text-[10px] text-muted-foreground">
-                                {new Date(loan.created_at).toLocaleTimeString(
-                                  [],
-                                  { hour: "2-digit", minute: "2-digit" }
-                                )}
+                                {loan.created_at
+                                  ? new Date(
+                                      loan.created_at
+                                    ).toLocaleTimeString([], {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })
+                                  : "--:--"}
                               </span>
                             </div>
                           </TableCell>
