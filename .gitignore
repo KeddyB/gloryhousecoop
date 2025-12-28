@@ -3,5 +3,9 @@ APP_OVERVIEW.md
 .next
 .env*
 package-lock.json
+node_modules/
+.idea/
+.vscode/
+.DS_Store
 node_modules
 .idea/
