@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/router";
+import { useState, useEffect, useMemo } from "react";
 import { Sidebar } from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,34 +21,40 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Wallet, Search, Plus, Filter, TrendingUp, Clock } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Search,
+  ChevronDown,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  CircleDollarSign,
+} from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/use-toast";
-import { Loan } from "../types";
+import { Loan, LoanState } from "../types";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 export default function LoanListPage() {
-  const router = useRouter();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [monthFilter, setMonthFilter] = useState<string>("all");
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
   const fetchLoans = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from("loans")
         .select(
           `
           *,
-          member:members (
-            full_name,
-            name,
-            member_id,
-            phone
-          )
+          member:members (*)
         `
         )
         .order("created_at", { ascending: false });
@@ -72,286 +77,338 @@ export default function LoanListPage() {
 
   useEffect(() => {
     fetchLoans();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supabase, toast]);
+  }, []);
 
-  const filteredLoans = loans.filter((loan) => {
-    // 1. Filter by status
-    if (statusFilter !== "all" && loan.state !== statusFilter) {
-      return false;
-    }
+  const filteredLoans = useMemo(() => {
+    return loans.filter((loan) => {
+      // 1. Filter by status
+      if (statusFilter !== "all" && loan.state !== statusFilter) {
+        return false;
+      }
 
-    // 2. Filter by search term (member name or ID)
-    const searchLower = searchTerm.toLowerCase();
-    const memberName = (
-      loan.member?.full_name ||
-      loan.member?.name ||
-      ""
-    ).toLowerCase();
-    const memberId = (loan.member_id || "").toLowerCase();
+      // 2. Filter by search term (member name or ID)
+      const searchLower = searchTerm.toLowerCase();
+      const memberName = (loan.member?.name || "").toLowerCase();
+      const memberId = (loan.member?.member_id || "").toLowerCase();
 
-    return memberName.includes(searchLower) || memberId.includes(searchLower);
-  });
+      const matchesSearch =
+        memberName.includes(searchLower) || memberId.includes(searchLower);
+      if (!matchesSearch) return false;
 
-  const getStatusColor = (status: string) => {
+      // 3. Filter by month (optional, since it's in the design)
+      if (monthFilter !== "all") {
+        const loanDate = new Date(loan.created_at || "");
+        const loanMonth = format(loanDate, "MMMM");
+        if (loanMonth.toLowerCase() !== monthFilter.toLowerCase()) return false;
+      }
+
+      return true;
+    });
+  }, [loans, searchTerm, statusFilter, monthFilter]);
+
+  const stats = useMemo(() => {
+    const active = loans.filter((l) => l.state === "active").length;
+    const pending = loans.filter((l) => l.state === "pending").length;
+    const overdue = loans.filter((l) => l.state === "rejected").length; // Placeholder for overdue if not available
+    const totalDisbursed = loans
+      .filter((l) => l.state === "active" || l.state === "disbursed")
+      .reduce((acc, curr) => acc + (curr.loan_amount || 0), 0);
+
+    return { active, pending, overdue, totalDisbursed };
+  }, [loans]);
+
+  const getStatusConfig = (status: LoanState) => {
     switch (status) {
-      case "pending":
-        return "bg-yellow-100 text-yellow-800";
-      case "approved":
-        return "bg-green-100 text-green-800";
-      case "rejected":
-        return "bg-red-100 text-red-800";
       case "active":
-        return "bg-blue-100 text-blue-800";
-      case "disbursed":
-        return "bg-purple-100 text-purple-800";
+        return {
+          label: "active",
+          className: "bg-black text-white hover:bg-black/90",
+        };
+      case "pending":
+        return {
+          label: "pending",
+          className: "bg-[#F4F4F4] text-[#666666] hover:bg-[#F4F4F4]",
+        };
+      case "repaid":
+        return {
+          label: "closed",
+          className:
+            "bg-white text-[#666666] border border-[#EEEEEE] hover:bg-white",
+        };
+      case "rejected":
+        return {
+          label: "overdue",
+          className: "bg-[#E03131] text-white hover:bg-[#E03131]/90",
+        };
       default:
-        return "bg-gray-100 text-gray-800";
+        return { label: status, className: "bg-gray-100 text-gray-800" };
     }
   };
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-[#FDFDFD]">
       <Sidebar />
-      <div className="flex-1 overflow-auto bg-gray-50/50">
-        <div className="p-8 space-y-8 max-w-7xl mx-auto">
-          {/* Header Section */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">
-                Loan Applications
-              </h1>
-              <p className="text-muted-foreground">
-                View and manage all loan applications in the system
-              </p>
-            </div>
-            <Button
-              className="bg-black text-white hover:bg-black/90 shadow-sm"
-              onClick={() => router.push("/loans/applications")}
-            >
-              <Plus className="mr-2 h-4 w-4" /> New Application
-            </Button>
+      <div className="flex-1 overflow-auto">
+        <div className="p-10 max-w-7xl mx-auto space-y-10">
+          {/* Header */}
+          <div className="space-y-1">
+            <h1 className="text-3xl font-semibold tracking-tight text-[#1A1A1A]">
+              Loan Management
+            </h1>
+            <p className="text-[#666666] text-base font-medium">
+              Track and manage all loan applications
+            </p>
           </div>
 
-          {/* Stats Summary */}
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card className="border-none shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground tracking-wide uppercase">
-                  Total Applications
-                </CardTitle>
-                <Wallet className="h-4 w-4 text-sky-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {loading ? <Skeleton className="h-8 w-12" /> : loans.length}
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-none shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground tracking-wide uppercase">
-                  Pending Disbursement
-                </CardTitle>
-                <Clock className="h-4 w-4 text-yellow-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {loading ? (
-                    <Skeleton className="h-8 w-12" />
-                  ) : (
-                    loans.filter((l) => l.state === "pending").length
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-none shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground tracking-wide uppercase">
-                  Total Amount
-                </CardTitle>
-                <TrendingUp className="h-4 w-4 text-green-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {loading ? (
-                    <Skeleton className="h-8 w-24" />
-                  ) : (
-                    `₦${loans
-                      .reduce((acc, curr) => acc + (curr.loan_amount || 0), 0)
-                      .toLocaleString()}`
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <StatCard
+              label="Active Loans"
+              value={stats.active}
+              icon={<CheckCircle2 className="h-5 w-5 text-[#2B8A3E]" />}
+              bgColor="bg-[#EBFBEE]"
+            />
+            <StatCard
+              label="Pending"
+              value={stats.pending}
+              icon={<Clock className="h-5 w-5 text-[#E67700]" />}
+              bgColor="bg-[#FFF4E6]"
+            />
+            <StatCard
+              label="Overdue"
+              value={stats.overdue}
+              icon={<AlertCircle className="h-5 w-5 text-[#E03131]" />}
+              bgColor="bg-[#FFF5F5]"
+            />
+            <StatCard
+              label="Total Disbursed"
+              value={`N${stats.totalDisbursed.toLocaleString()}`}
+              icon={<CircleDollarSign className="h-5 w-5 text-[#1971C2]" />}
+              bgColor="bg-[#E7F5FF]"
+            />
           </div>
 
-          {/* Main Content Card */}
-          <Card className="border-none shadow-sm bg-white">
-            <CardHeader className="pb-3 border-b">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-bold">
-                  Loan Applications
+          {/* Main Content */}
+          <Card className="border border-[#EEEEEE] shadow-none rounded-2xl overflow-hidden">
+            <CardHeader className="p-8 pb-4">
+              <div className="space-y-6">
+                <CardTitle className="text-lg font-semibold text-[#1A1A1A]">
+                  Loan Records
                 </CardTitle>
-                <div className="flex items-center gap-2">
-                  <div className="relative group">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-black transition-colors" />
+                <div className="flex items-center gap-4">
+                  <div className="relative flex-1 group">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#ADB5BD] group-focus-within:text-black transition-colors" />
                     <Input
-                      placeholder="Search by name or ID..."
-                      className="pl-9 bg-gray-50 border-none h-10 w-[250px] focus-visible:ring-1 focus-visible:ring-black rounded-lg"
+                      placeholder="Search by applicant..."
+                      className="pl-11 bg-[#F8F9FA] border-none h-12 text-sm rounded-xl focus-visible:ring-1 focus-visible:ring-[#EEEEEE]"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[160px] bg-gray-50 border-none h-10 focus:ring-1 focus:ring-black rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <Filter className="h-4 w-4 text-gray-400" />
-                        <SelectValue placeholder="Status" />
-                      </div>
+                    <SelectTrigger className="w-[180px] bg-[#F8F9FA] border-none h-12 text-sm rounded-xl px-5">
+                      <SelectValue placeholder="All Status" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-xl border-none shadow-lg">
+                    <SelectContent className="rounded-xl border-[#EEEEEE] shadow-xl">
                       <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="approved">Approved</SelectItem>
                       <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="disbursed">Disbursed</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="repaid">Closed</SelectItem>
+                      <SelectItem value="rejected">Overdue</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={monthFilter} onValueChange={setMonthFilter}>
+                    <SelectTrigger className="w-[180px] bg-[#F8F9FA] border-none h-12 text-sm rounded-xl px-5">
+                      <SelectValue placeholder="All Month" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-[#EEEEEE] shadow-xl">
+                      <SelectItem value="all">All Month</SelectItem>
+                      {/* Add months dynamically or manually */}
+                      <SelectItem value="january">January</SelectItem>
+                      <SelectItem value="february">February</SelectItem>
+                      <SelectItem value="march">March</SelectItem>
+                      <SelectItem value="april">April</SelectItem>
+                      <SelectItem value="may">May</SelectItem>
+                      <SelectItem value="june">June</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-gray-50/50 hover:bg-gray-50/50">
-                      <TableHead className="py-4 pl-6 font-semibold">
-                        Applicant
-                      </TableHead>
-                      <TableHead className="py-4 font-semibold">
-                        Amount
-                      </TableHead>
-                      <TableHead className="py-4 font-semibold">
-                        Purpose
-                      </TableHead>
-                      <TableHead className="py-4 font-semibold text-center">
-                        Status
-                      </TableHead>
-                      <TableHead className="py-4 font-semibold text-center pr-6">
-                        Date Submitted
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loading ? (
-                      Array(5)
-                        .fill(0)
-                        .map((_, index) => (
-                          <TableRow key={index} className="animate-pulse">
-                            <TableCell className="pl-6 py-4">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent border-[#EEEEEE]">
+                    <TableHead className="h-14 px-8 text-[#666666] font-semibold text-sm">
+                      Applicant
+                    </TableHead>
+                    <TableHead className="h-14 font-semibold text-[#666666] text-sm">
+                      Amount
+                    </TableHead>
+                    <TableHead className="h-14 font-semibold text-[#666666] text-sm">
+                      Progress
+                    </TableHead>
+                    <TableHead className="h-14 font-semibold text-[#666666] text-sm">
+                      Status
+                    </TableHead>
+                    <TableHead className="h-14 px-8 font-semibold text-[#666666] text-sm">
+                      Due Date
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    Array(5)
+                      .fill(0)
+                      .map((_, i) => (
+                        <TableRow key={i} className="border-[#EEEEEE]">
+                          <TableCell className="px-8 py-6 h-24">
+                            <div className="flex items-center gap-3">
+                              <Skeleton className="h-10 w-10 rounded-full" />
                               <div className="space-y-2">
                                 <Skeleton className="h-4 w-32" />
                                 <Skeleton className="h-3 w-20" />
                               </div>
-                            </TableCell>
-                            <TableCell className="py-4">
-                              <Skeleton className="h-4 w-24" />
-                            </TableCell>
-                            <TableCell className="py-4">
-                              <Skeleton className="h-4 w-40" />
-                            </TableCell>
-                            <TableCell className="py-4">
-                              <div className="flex justify-center">
-                                <Skeleton className="h-6 w-20 rounded-full" />
-                              </div>
-                            </TableCell>
-                            <TableCell className="py-4 pr-6">
-                              <div className="flex justify-center">
-                                <Skeleton className="h-4 w-24" />
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                    ) : filteredLoans.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-12">
-                          <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                            <Wallet className="h-12 w-12 opacity-10" />
-                            <p>No loan applications found</p>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredLoans.map((loan) => (
-                        <TableRow
-                          key={loan.id}
-                          className="group hover:bg-gray-50/50 cursor-pointer transition-colors border-b"
-                          onClick={() => router.push(`/loans/list/${loan.id}`)}
-                        >
-                          <TableCell className="pl-6 py-4">
-                            <div className="font-semibold text-sm">
-                              {loan.member?.full_name ||
-                                loan.member?.name ||
-                                "Unknown Member"}
-                            </div>
-                            <div className="text-xs text-muted-foreground font-medium">
-                              #{loan.member_id}
                             </div>
                           </TableCell>
-                          <TableCell className="py-4">
-                            <div className="font-bold text-sm">
-                              ₦{Number(loan.loan_amount).toLocaleString()}
-                            </div>
-                            <div className="text-[10px] text-muted-foreground uppercase tracking-tight">
-                              {loan.interest_rate}% Interest
-                            </div>
+                          <TableCell>
+                            <Skeleton className="h-4 w-24" />
                           </TableCell>
-                          <TableCell className="py-4">
-                            <p className="text-xs text-muted-foreground line-clamp-1 max-w-[200px]">
-                              {loan.purpose}
-                            </p>
+                          <TableCell>
+                            <Skeleton className="h-4 w-40" />
                           </TableCell>
-                          <TableCell className="py-4 text-center">
-                            <Badge
-                              className={`rounded-full px-4 py-1 font-semibold text-[10px] uppercase tracking-wider border-none shadow-none ${getStatusColor(
-                                loan.state
-                              )}`}
-                            >
-                              {loan.state}
-                            </Badge>
+                          <TableCell>
+                            <Skeleton className="h-8 w-20 rounded-full" />
                           </TableCell>
-                          <TableCell className="py-4 text-center pr-6">
-                            <div className="flex flex-col items-center">
-                              <span className="text-sm font-medium">
-                                {loan.created_at
-                                  ? new Date(
-                                      loan.created_at
-                                    ).toLocaleDateString()
-                                  : "N/A"}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground">
-                                {loan.created_at
-                                  ? new Date(
-                                      loan.created_at
-                                    ).toLocaleTimeString([], {
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })
-                                  : "--:--"}
-                              </span>
-                            </div>
+                          <TableCell className="px-8">
+                            <Skeleton className="h-4 w-24" />
                           </TableCell>
                         </TableRow>
                       ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+                  ) : filteredLoans.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-64 text-center">
+                        <div className="flex flex-col items-center gap-4 text-[#ADB5BD]">
+                          <CircleDollarSign className="h-12 w-12 opacity-20" />
+                          <p className="text-base font-medium">
+                            No loan records found
+                          </p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredLoans.map((loan) => {
+                      const statusConfig = getStatusConfig(loan.state);
+                      const memberInitials = (loan.member?.name || "??")
+                        .substring(0, 2)
+                        .toUpperCase();
+
+                      return (
+                        <TableRow
+                          key={loan.id}
+                          className="border-[#EEEEEE] hover:bg-[#F8F9FA]/50 transition-colors cursor-pointer"
+                        >
+                          <TableCell className="px-8 py-6">
+                            <div className="flex items-center gap-4">
+                              <Avatar className="h-11 w-11 bg-[#F4F4F4]">
+                                <AvatarFallback className="text-sm font-bold text-[#666666]">
+                                  {memberInitials}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="font-semibold text-[#1A1A1A] text-[15px]">
+                                  {loan.member?.name}
+                                </p>
+                                <p className="text-xs font-semibold text-[#ADB5BD] tracking-wider uppercase">
+                                  {loan.member?.member_id}
+                                </p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-semibold text-[#1A1A1A] text-[15px]">
+                                N{Number(loan.loan_amount).toLocaleString()}
+                              </p>
+                              <p className="text-[#666666] text-xs font-medium">
+                                {loan.tenure} months
+                              </p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="text-[#666666] text-xs font-medium">
+                                Paid:{" "}
+                                <span className="text-[#1A1A1A] font-semibold">
+                                  N0
+                                </span>
+                              </p>
+                              <p className="text-[#666666] text-xs font-medium mt-1">
+                                Remaining:{" "}
+                                <span className="text-[#1A1A1A] font-semibold">
+                                  N{Number(loan.loan_amount).toLocaleString()}
+                                </span>
+                              </p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              className={cn(
+                                "rounded-lg px-4 py-1.5 font-bold text-[10px] uppercase tracking-[0.05em] shadow-none border-none",
+                                statusConfig.className
+                              )}
+                            >
+                              {statusConfig.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="px-8 font-semibold text-[#1A1A1A] text-[15px]">
+                            {loan.created_at
+                              ? format(new Date(loan.created_at), "dd/MM/yyyy")
+                              : "N/A"}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </div>
       </div>
     </div>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  icon,
+  bgColor,
+}: {
+  label: string;
+  value: string | number;
+  icon: React.ReactNode;
+  bgColor: string;
+}) {
+  return (
+    <Card className="border border-[#EEEEEE] shadow-none rounded-2xl p-6">
+      <div className="flex items-start gap-4">
+        <div
+          className={cn(
+            "h-11 w-11 rounded-full flex items-center justify-center",
+            bgColor
+          )}
+        >
+          {icon}
+        </div>
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-[#666666]">{label}</p>
+          <h3 className="text-2xl font-bold text-[#1A1A1A] tracking-tight">
+            {value}
+          </h3>
+        </div>
+      </div>
+    </Card>
   );
 }
