@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import { Sidebar } from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
@@ -29,8 +29,13 @@ import {
   Search,
   Upload,
   CircleCheck,
-  Briefcase,
+  Loader2,
+  File as FileIcon,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
+import { createClient } from "@/utils/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 const steps = [
   { id: 1, name: "Applicant Information", icon: User },
@@ -40,26 +45,7 @@ const steps = [
   { id: 5, name: "Review & Submit", icon: Eye },
 ];
 
-const mockMembers = [
-  {
-    id: "MEM001",
-    name: "Ahmed Rahman",
-    phone: "+880 1712-345678",
-    email: "ahmed@example.com",
-  },
-  {
-    id: "MEM002",
-    name: "John Doe",
-    phone: "+234 801-234-5678",
-    email: "john@example.com",
-  },
-  {
-    id: "MEM003",
-    name: "Jane Smith",
-    phone: "+234 902-345-6789",
-    email: "jane@example.com",
-  },
-];
+const MEMBERS_PER_PAGE = 5;
 
 export default function ApplicationsPage() {
   return (
@@ -71,11 +57,19 @@ export default function ApplicationsPage() {
 
 function LoanApplicationForm() {
   const router = useRouter();
+  const supabase = createClient();
+  const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedMember, setSelectedMember] = useState<
-    (typeof mockMembers)[0] | null
-  >(null);
+  const [members, setMembers] = useState<any[]>([]);
+  const [selectedMember, setSelectedMember] = useState<any | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [memberPage, setMemberPage] = useState(1);
+  const [totalMemberCount, setTotalMemberCount] = useState(0);
+
+  const collateralFileRef = useRef<HTMLInputElement>(null);
+  const agreementFileRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     loanAmount: "200000",
@@ -86,7 +80,67 @@ function LoanApplicationForm() {
     purpose: "",
     thirdPartyName: "",
     thirdPartyPhone: "",
+    collateralDocsUrl: "",
+    loanAgreementUrl: "",
   });
+
+  const [files, setFiles] = useState<{
+    collateral: File | null;
+    agreement: File | null;
+  }>({
+    collateral: null,
+    agreement: null,
+  });
+
+  const [isUploading, setIsUploading] = useState({
+    collateral: false,
+    agreement: false,
+  });
+
+  // Member Search and Fetch
+  useEffect(() => {
+    const fetchMembers = async () => {
+      setIsSearching(true);
+      const from = (memberPage - 1) * MEMBERS_PER_PAGE;
+      const to = from + MEMBERS_PER_PAGE - 1;
+
+      let result;
+      if (searchQuery.length >= 2) {
+        result = await supabase
+          .from("members")
+          .select("*", { count: "exact" })
+          .or(
+            `full_name.ilike.%${searchQuery}%,name.ilike.%${searchQuery}%,member_id.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`
+          )
+          .range(from, to)
+          .order("name", { ascending: true });
+      } else {
+        result = await supabase
+          .from("members")
+          .select("*", { count: "exact" })
+          .range(from, to)
+          .order("name", { ascending: true });
+      }
+
+      const { data, error, count } = result;
+
+      if (!error && data) {
+        setMembers(data);
+        setTotalMemberCount(count || 0);
+      } else if (error) {
+        console.error("Error fetching members:", error);
+      }
+      setIsSearching(false);
+    };
+
+    const timer = setTimeout(fetchMembers, searchQuery.length >= 2 ? 500 : 0);
+    return () => clearTimeout(timer);
+  }, [searchQuery, memberPage, supabase]);
+
+  // Reset page when search query changes
+  useEffect(() => {
+    setMemberPage(1);
+  }, [searchQuery]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -99,8 +153,112 @@ function LoanApplicationForm() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleFileChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    type: "collateral" | "agreement"
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Limit to documents and images
+    const allowedTypes = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "image/jpeg",
+      "image/png",
+    ];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload only PDF, DOC, DOCX, or Image files.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setFiles((prev) => ({ ...prev, [type]: file }));
+
+    // Auto-upload
+    setIsUploading((prev) => ({ ...prev, [type]: true }));
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${type}_${Date.now()}.${fileExt}`;
+
+    const { data, error } = await supabase.storage
+      .from("loan-documents")
+      .upload(fileName, file);
+
+    if (error) {
+      toast({
+        title: "Upload failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else if (data) {
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("loan-documents").getPublicUrl(data.path);
+
+      const stateKey =
+        type === "collateral" ? "collateralDocsUrl" : "loanAgreementUrl";
+      setFormData((prev) => ({ ...prev, [stateKey]: publicUrl }));
+      toast({
+        title: "Upload successful",
+        description: `${
+          type === "collateral" ? "Collateral document" : "Loan agreement"
+        } uploaded.`,
+      });
+    }
+    setIsUploading((prev) => ({ ...prev, [type]: false }));
+  };
+
+  const validateStep = () => {
+    switch (currentStep) {
+      case 1:
+        if (!selectedMember) {
+          toast({
+            title: "Validation Error",
+            description: "Please select a member to proceed.",
+            variant: "destructive",
+          });
+          return false;
+        }
+        break;
+      case 2:
+        if (
+          !formData.loanAmount ||
+          !formData.interestRate ||
+          !formData.collateralType ||
+          !formData.collateralValue ||
+          !formData.tenure ||
+          !formData.purpose
+        ) {
+          toast({
+            title: "Validation Error",
+            description: "Please fill in all required loan details.",
+            variant: "destructive",
+          });
+          return false;
+        }
+        break;
+      case 3:
+        if (!formData.thirdPartyName || !formData.thirdPartyPhone) {
+          toast({
+            title: "Validation Error",
+            description: "Please fill in all third party details.",
+            variant: "destructive",
+          });
+          return false;
+        }
+        break;
+      default:
+        break;
+    }
+    return true;
+  };
+
   const handleNext = () => {
-    if (currentStep < steps.length) {
+    if (validateStep() && currentStep < steps.length) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -111,14 +269,45 @@ function LoanApplicationForm() {
     }
   };
 
-  const filteredMembers = mockMembers.filter(
-    (m) =>
-      m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.phone.includes(searchQuery)
-  );
+  const handleSubmit = async () => {
+    if (!validateStep()) return;
+
+    setIsSubmitting(true);
+    const { error } = await supabase.from("loans").insert([
+      {
+        member_id: selectedMember.member_id,
+        loan_amount: Number(formData.loanAmount),
+        interest_rate: Number(formData.interestRate),
+        collateral_type: formData.collateralType,
+        collateral_value: Number(formData.collateralValue) || 0,
+        tenure: Number(formData.tenure),
+        purpose: formData.purpose,
+        third_party_name: formData.thirdPartyName,
+        third_party_number: formData.thirdPartyPhone,
+        collateral_docs_url: formData.collateralDocsUrl,
+        loan_agreement_url: formData.loanAgreementUrl,
+        state: "pending",
+      },
+    ]);
+
+    if (error) {
+      toast({
+        title: "Submission failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
+    } else {
+      toast({
+        title: "Success",
+        description: "Loan application submitted successfully!",
+      });
+      router.push("/loans/list");
+    }
+  };
 
   const progress = (currentStep / steps.length) * 100;
+  const totalPages = Math.ceil(totalMemberCount / MEMBERS_PER_PAGE);
 
   return (
     <div className="flex h-screen bg-background">
@@ -201,7 +390,7 @@ function LoanApplicationForm() {
           </Card>
 
           {/* Form Content */}
-          <Card className="border-none shadow-sm min-h-[400px]">
+          <Card className="border-none shadow-sm min-h-100">
             <CardContent className="p-8">
               {currentStep === 1 && (
                 <div className="space-y-6">
@@ -210,14 +399,18 @@ function LoanApplicationForm() {
                       Applicant Information
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                      Select a member for this loan application
+                      Search and select a member for this loan application
                     </p>
                   </div>
 
                   <div className="space-y-4">
-                    <label className="text-sm font-medium">Select Member</label>
+                    <label className="text-sm font-medium">Search Member</label>
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      {isSearching ? (
+                        <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 animate-spin" />
+                      ) : (
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      )}
                       <Input
                         placeholder="Search by name, member ID, phone or email..."
                         className="pl-10 bg-gray-50 border-none h-12"
@@ -227,32 +420,104 @@ function LoanApplicationForm() {
                     </div>
 
                     <div className="space-y-2 mt-4">
-                      {filteredMembers.map((member) => (
+                      {members.map((member) => (
                         <div
-                          key={member.id}
-                          onClick={() => setSelectedMember(member)}
+                          key={member.member_id}
+                          onClick={() => {
+                            setSelectedMember(member);
+                            setSearchQuery("");
+                          }}
                           className={cn(
                             "flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer hover:bg-gray-50",
-                            selectedMember?.id === member.id
+                            selectedMember?.member_id === member.member_id
                               ? "border-black bg-gray-50/50"
                               : "border-gray-100"
                           )}
                         >
-                          <div className="h-10 w-10 rounded-full bg-gray-200" />
+                          <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                            <User className="h-5 w-5 text-gray-500" />
+                          </div>
                           <div className="flex-1">
                             <p className="font-semibold text-sm">
-                              {member.name}
+                              {member.full_name || member.name}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {member.id} • {member.phone}
+                              {member.member_id} • {member.phone}
                             </p>
                           </div>
-                          {selectedMember?.id === member.id && (
+                          {selectedMember?.member_id === member.member_id && (
                             <CheckCircle className="h-5 w-5 text-black" />
                           )}
                         </div>
                       ))}
+                      {!isSearching && members.length === 0 && (
+                        <p className="text-center py-4 text-sm text-muted-foreground">
+                          {searchQuery.length >= 2
+                            ? `No members found matching &quot;${searchQuery}&quot;`
+                            : "No members found"}
+                        </p>
+                      )}
                     </div>
+
+                    {/* Member Pagination */}
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-center gap-4 pt-4 border-t border-gray-100">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            setMemberPage((prev) => Math.max(1, prev - 1))
+                          }
+                          disabled={memberPage === 1 || isSearching}
+                          className="h-8 px-2"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <span className="text-xs font-medium">
+                          Page {memberPage} of {totalPages}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            setMemberPage((prev) =>
+                              Math.min(totalPages, prev + 1)
+                            )
+                          }
+                          disabled={memberPage === totalPages || isSearching}
+                          className="h-8 px-2"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+
+                    {selectedMember && !searchQuery && (
+                      <div className="p-4 bg-green-50/50 rounded-xl border border-green-100 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold">
+                              Selected:{" "}
+                              {selectedMember.full_name || selectedMember.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {selectedMember.member_id}
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedMember(null)}
+                          className="text-xs"
+                        >
+                          Change
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -273,6 +538,7 @@ function LoanApplicationForm() {
                       </label>
                       <Input
                         name="loanAmount"
+                        type="number"
                         value={formData.loanAmount}
                         onChange={handleChange}
                         placeholder="200000"
@@ -285,9 +551,10 @@ function LoanApplicationForm() {
                       </label>
                       <Input
                         name="interestRate"
+                        type="number"
                         value={formData.interestRate}
                         onChange={handleChange}
-                        placeholder="Enter rate"
+                        placeholder="Enter rate (e.g. 5)"
                         className="bg-gray-50 border-none h-12"
                       />
                     </div>
@@ -318,6 +585,7 @@ function LoanApplicationForm() {
                       </label>
                       <Input
                         name="collateralValue"
+                        type="number"
                         value={formData.collateralValue}
                         onChange={handleChange}
                         placeholder="Enter estimated value"
@@ -326,7 +594,7 @@ function LoanApplicationForm() {
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">
-                        Tenure (Months)
+                        Tenure (Months) *
                       </label>
                       <Select
                         onValueChange={(v) => handleSelectChange("tenure", v)}
@@ -350,7 +618,7 @@ function LoanApplicationForm() {
                       value={formData.purpose}
                       onChange={handleChange}
                       placeholder="Describe the purpose of the loan"
-                      className="bg-gray-50 border-none min-h-[100px] resize-none"
+                      className="bg-gray-50 border-none min-h-25 resize-none"
                     />
                   </div>
                 </div>
@@ -403,7 +671,8 @@ function LoanApplicationForm() {
                       Documents Upload
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                      Upload necessary documents for verification
+                      Upload necessary documents for verification (PDF, Image,
+                      or DOC)
                     </p>
                   </div>
 
@@ -412,26 +681,83 @@ function LoanApplicationForm() {
                       <label className="text-sm font-medium">
                         Collateral Documents
                       </label>
-                      <div className="border-2 border-dashed border-gray-200 rounded-xl p-10 flex flex-col items-center justify-center gap-3 bg-gray-50/50 hover:bg-gray-50 hover:border-gray-300 transition-all cursor-pointer">
-                        <div className="h-10 w-10 rounded-full bg-white shadow-sm flex items-center justify-center">
-                          <Upload className="h-5 w-5 text-gray-400" />
-                        </div>
+                      <input
+                        type="file"
+                        ref={collateralFileRef}
+                        className="hidden"
+                        onChange={(e) => handleFileChange(e, "collateral")}
+                        accept=".pdf,.doc,.docx,image/*"
+                      />
+                      <div
+                        onClick={() => collateralFileRef.current?.click()}
+                        className={cn(
+                          "border-2 border-dashed border-gray-200 rounded-xl p-10 flex flex-col items-center justify-center gap-3 bg-gray-50/50 hover:bg-gray-50 hover:border-gray-300 transition-all cursor-pointer",
+                          formData.collateralDocsUrl &&
+                            "border-green-300 bg-green-50/20"
+                        )}
+                      >
+                        {isUploading.collateral ? (
+                          <Loader2 className="h-10 w-10 text-gray-400 animate-spin" />
+                        ) : formData.collateralDocsUrl ? (
+                          <CheckCircle className="h-10 w-10 text-green-500" />
+                        ) : (
+                          <Upload className="h-10 w-10 text-gray-400" />
+                        )}
                         <p className="text-sm text-gray-500 font-medium">
-                          Click to upload collateral docs
+                          {isUploading.collateral
+                            ? "Uploading..."
+                            : formData.collateralDocsUrl
+                            ? "Uploaded Successfully"
+                            : "Click to upload collateral docs"}
                         </p>
+                        {files.collateral && (
+                          <div className="flex items-center gap-2 text-xs text-gray-400">
+                            <FileIcon className="h-3 w-3" />
+                            <span>{files.collateral.name}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
+
                     <div className="space-y-3">
                       <label className="text-sm font-medium">
                         Loan Agreement
                       </label>
-                      <div className="border-2 border-dashed border-gray-200 rounded-xl p-10 flex flex-col items-center justify-center gap-3 bg-gray-50/50 hover:bg-gray-50 hover:border-gray-300 transition-all cursor-pointer">
-                        <div className="h-10 w-10 rounded-full bg-white shadow-sm flex items-center justify-center">
-                          <Upload className="h-5 w-5 text-gray-400" />
-                        </div>
+                      <input
+                        type="file"
+                        ref={agreementFileRef}
+                        className="hidden"
+                        onChange={(e) => handleFileChange(e, "agreement")}
+                        accept=".pdf,.doc,.docx,image/*"
+                      />
+                      <div
+                        onClick={() => agreementFileRef.current?.click()}
+                        className={cn(
+                          "border-2 border-dashed border-gray-200 rounded-xl p-10 flex flex-col items-center justify-center gap-3 bg-gray-50/50 hover:bg-gray-50 hover:border-gray-300 transition-all cursor-pointer",
+                          formData.loanAgreementUrl &&
+                            "border-green-300 bg-green-50/20"
+                        )}
+                      >
+                        {isUploading.agreement ? (
+                          <Loader2 className="h-10 w-10 text-gray-400 animate-spin" />
+                        ) : formData.loanAgreementUrl ? (
+                          <CheckCircle className="h-10 w-10 text-green-500" />
+                        ) : (
+                          <Upload className="h-10 w-10 text-gray-400" />
+                        )}
                         <p className="text-sm text-gray-500 font-medium">
-                          Click to upload income proofs
+                          {isUploading.agreement
+                            ? "Uploading..."
+                            : formData.loanAgreementUrl
+                            ? "Uploaded Successfully"
+                            : "Click to upload loan agreement"}
                         </p>
+                        {files.agreement && (
+                          <div className="flex items-center gap-2 text-xs text-gray-400">
+                            <FileIcon className="h-3 w-3" />
+                            <span>{files.agreement.name}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -465,7 +791,9 @@ function LoanApplicationForm() {
                           <div className="flex justify-between text-sm">
                             <span className="text-gray-500">Name:</span>
                             <span className="font-medium text-right">
-                              {selectedMember?.name || "N/A"}
+                              {selectedMember?.full_name ||
+                                selectedMember?.name ||
+                                "N/A"}
                             </span>
                           </div>
                           <div className="flex justify-between text-sm">
@@ -487,7 +815,7 @@ function LoanApplicationForm() {
                           <div className="flex justify-between text-sm">
                             <span className="text-gray-500">Loan Amount:</span>
                             <span className="font-medium text-right">
-                              N{Number(formData.loanAmount).toLocaleString()}
+                              ₦{Number(formData.loanAmount).toLocaleString()}
                             </span>
                           </div>
                           <div className="flex justify-between text-sm">
@@ -509,7 +837,7 @@ function LoanApplicationForm() {
                               Interest Monthly Fee:
                             </span>
                             <span className="font-medium text-right">
-                              N
+                              ₦
                               {(
                                 Number(formData.loanAmount) *
                                 (Number(formData.interestRate) / 100)
@@ -536,7 +864,7 @@ function LoanApplicationForm() {
             <Button
               variant="outline"
               onClick={handlePrevious}
-              disabled={currentStep === 1}
+              disabled={currentStep === 1 || isSubmitting}
               className="px-8 h-12 rounded-xl bg-white"
             >
               <ArrowLeft className="mr-2 h-4 w-4" /> Previous
@@ -552,13 +880,20 @@ function LoanApplicationForm() {
               </Button>
             ) : (
               <Button
-                onClick={() => {
-                  alert("Application Submitted Successfully!");
-                  router.push("/loans/list");
-                }}
+                onClick={handleSubmit}
+                disabled={isSubmitting}
                 className="px-8 h-12 rounded-xl bg-black text-white hover:bg-black/90 transition-all font-semibold"
               >
-                <FileText className="mr-2 h-4 w-4" /> Submit Application
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="mr-2 h-4 w-4" /> Submit Application
+                  </>
+                )}
               </Button>
             )}
           </div>
