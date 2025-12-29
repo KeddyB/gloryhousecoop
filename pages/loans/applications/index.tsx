@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { Member } from "@/pages/members/types";
 
 const steps = [
   { id: 1, name: "Applicant Information", icon: User },
@@ -61,8 +62,8 @@ function LoanApplicationForm() {
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
-  const [members, setMembers] = useState<any[]>([]);
-  const [selectedMember, setSelectedMember] = useState<any | null>(null);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [memberPage, setMemberPage] = useState(1);
@@ -72,7 +73,7 @@ function LoanApplicationForm() {
   const agreementFileRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
-    loanAmount: "200000",
+    loanAmount: "",
     interestRate: "",
     collateralType: "",
     collateralValue: "",
@@ -136,11 +137,6 @@ function LoanApplicationForm() {
     const timer = setTimeout(fetchMembers, searchQuery.length >= 2 ? 500 : 0);
     return () => clearTimeout(timer);
   }, [searchQuery, memberPage, supabase]);
-
-  // Reset page when search query changes
-  useEffect(() => {
-    setMemberPage(1);
-  }, [searchQuery]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -275,7 +271,7 @@ function LoanApplicationForm() {
     setIsSubmitting(true);
     const { error } = await supabase.from("loans").insert([
       {
-        member_id: selectedMember.member_id,
+        member_id: selectedMember?.member_id,
         loan_amount: Number(formData.loanAmount),
         interest_rate: Number(formData.interestRate),
         collateral_type: formData.collateralType,
@@ -305,6 +301,30 @@ function LoanApplicationForm() {
       router.push("/loans/list");
     }
   };
+
+  const isStepValid = () => {
+    switch (currentStep) {
+      case 1:
+        return !!selectedMember;
+      case 2:
+        return (
+          !!formData.loanAmount &&
+          !!formData.interestRate &&
+          !!formData.collateralType &&
+          !!formData.collateralValue &&
+          !!formData.tenure &&
+          !!formData.purpose
+        );
+      case 3:
+        return !!formData.thirdPartyName && !!formData.thirdPartyPhone;
+      case 4:
+        return !!formData.collateralDocsUrl && !!formData.loanAgreementUrl;
+      default:
+        return true;
+    }
+  };
+
+  const isValid = isStepValid();
 
   const progress = (currentStep / steps.length) * 100;
   const totalPages = Math.ceil(totalMemberCount / MEMBERS_PER_PAGE);
@@ -415,7 +435,10 @@ function LoanApplicationForm() {
                         placeholder="Search by name, member ID, phone or email..."
                         className="pl-10 bg-gray-50 border-none h-12"
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onChange={(e) => {
+                          setSearchQuery(e.target.value);
+                          setMemberPage(1);
+                        }}
                       />
                     </div>
 
@@ -426,27 +449,56 @@ function LoanApplicationForm() {
                           onClick={() => {
                             setSelectedMember(member);
                             setSearchQuery("");
+                            setMemberPage(1);
                           }}
                           className={cn(
                             "flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer hover:bg-gray-50",
                             selectedMember?.member_id === member.member_id
-                              ? "border-black bg-gray-50/50"
+                              ? "border-green-600 bg-green-50/50"
                               : "border-gray-100"
                           )}
                         >
-                          <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                            <User className="h-5 w-5 text-gray-500" />
+                          <div
+                            className={cn(
+                              "h-10 w-10 rounded-full flex items-center justify-center",
+                              selectedMember?.member_id === member.member_id
+                                ? "bg-green-100"
+                                : "bg-gray-200"
+                            )}
+                          >
+                            <User
+                              className={cn(
+                                "h-5 w-5",
+                                selectedMember?.member_id === member.member_id
+                                  ? "text-green-600"
+                                  : "text-gray-500"
+                              )}
+                            />
                           </div>
                           <div className="flex-1">
-                            <p className="font-semibold text-sm">
+                            <p
+                              className={cn(
+                                "font-semibold text-sm",
+                                selectedMember?.member_id === member.member_id
+                                  ? "text-green-900"
+                                  : "text-black"
+                              )}
+                            >
                               {member.full_name || member.name}
                             </p>
-                            <p className="text-xs text-muted-foreground">
+                            <p
+                              className={cn(
+                                "text-xs",
+                                selectedMember?.member_id === member.member_id
+                                  ? "text-green-700"
+                                  : "text-muted-foreground"
+                              )}
+                            >
                               {member.member_id} • {member.phone}
                             </p>
                           </div>
                           {selectedMember?.member_id === member.member_id && (
-                            <CheckCircle className="h-5 w-5 text-black" />
+                            <CheckCircle className="h-5 w-5 text-green-600" />
                           )}
                         </div>
                       ))}
@@ -491,33 +543,6 @@ function LoanApplicationForm() {
                         </Button>
                       </div>
                     )}
-
-                    {selectedMember && !searchQuery && (
-                      <div className="p-4 bg-green-50/50 rounded-xl border border-green-100 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
-                            <CheckCircle className="h-4 w-4 text-green-600" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold">
-                              Selected:{" "}
-                              {selectedMember.full_name || selectedMember.name}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {selectedMember.member_id}
-                            </p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSelectedMember(null)}
-                          className="text-xs"
-                        >
-                          Change
-                        </Button>
-                      </div>
-                    )}
                   </div>
                 </div>
               )}
@@ -541,7 +566,7 @@ function LoanApplicationForm() {
                         type="number"
                         value={formData.loanAmount}
                         onChange={handleChange}
-                        placeholder="200000"
+                        placeholder="Enter Loan Amount"
                         className="bg-gray-50 border-none h-12"
                       />
                     </div>
@@ -873,16 +898,26 @@ function LoanApplicationForm() {
             {currentStep < steps.length ? (
               <Button
                 onClick={handleNext}
-                className="px-8 h-12 rounded-xl bg-black text-white hover:bg-black/90 transition-all font-semibold"
-                disabled={currentStep === 1 && !selectedMember}
+                className={cn(
+                  "px-8 h-12 rounded-xl transition-all font-semibold",
+                  isValid
+                    ? "bg-black text-white hover:bg-black/90"
+                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                )}
+                disabled={!isValid}
               >
                 Next <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             ) : (
               <Button
                 onClick={handleSubmit}
-                disabled={isSubmitting}
-                className="px-8 h-12 rounded-xl bg-black text-white hover:bg-black/90 transition-all font-semibold"
+                disabled={!isValid || isSubmitting}
+                className={cn(
+                  "px-8 h-12 rounded-xl transition-all font-semibold",
+                  isValid && !isSubmitting
+                    ? "bg-black text-white hover:bg-black/90"
+                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                )}
               >
                 {isSubmitting ? (
                   <>
