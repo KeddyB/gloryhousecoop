@@ -36,6 +36,8 @@ import {
   Mail,
   MapPin,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { Member } from "../types";
@@ -60,6 +62,8 @@ export default function MembersListPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const supabase = createClient();
 
   // State for dialogs
@@ -71,7 +75,11 @@ export default function MembersListPage() {
 
   const fetchMembers = async () => {
     try {
-      const { data, error } = await supabase.from("members").select("*");
+      // Order by created_at descending (newest first)
+      const { data, error } = await supabase
+        .from("members")
+        .select("*")
+        .order("created_at", { ascending: false });
 
       if (error) {
         console.error("Error fetching members:", error);
@@ -106,6 +114,12 @@ export default function MembersListPage() {
       member.phone?.includes(searchTerm)
     );
   });
+
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredMembers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentMembers = filteredMembers.slice(startIndex, endIndex);
 
   const totalMembers = members.length;
   const activeMembers = members.filter((m) => m.status === "active").length;
@@ -167,6 +181,18 @@ export default function MembersListPage() {
     } finally {
       setIsDeleting(false);
       setDeleteDialogOpen(false);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(prev => prev + 1);
+    }
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(prev => prev - 1);
     }
   };
 
@@ -250,10 +276,16 @@ export default function MembersListPage() {
                     placeholder="Search by name, phone or email..."
                     className="pl-9 bg-muted/50 border-none"
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setCurrentPage(1); // Reset to page 1 on search
+                    }}
                   />
                 </div>
-                <Select defaultValue="all" onValueChange={setStatusFilter}>
+                <Select defaultValue="all" onValueChange={(value) => {
+                  setStatusFilter(value);
+                  setCurrentPage(1); // Reset to page 1 on filter
+                }}>
                   <SelectTrigger className="w-45 bg-muted/50 border-none">
                     <SelectValue placeholder="All Status" />
                   </SelectTrigger>
@@ -336,7 +368,7 @@ export default function MembersListPage() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredMembers.map((member) => (
+                      currentMembers.map((member) => (
                         <TableRow
                           key={member.id}
                           className="cursor-pointer hover:bg-muted/50 transition-colors"
@@ -439,6 +471,38 @@ export default function MembersListPage() {
                   </TableBody>
                 </Table>
               </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between py-4">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {startIndex + 1}-{Math.min(endIndex, filteredMembers.length)} of {filteredMembers.length} members
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={goToPreviousPage}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Previous
+                    </Button>
+                    <span className="text-sm font-medium">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={goToNextPage}
+                      disabled={currentPage === totalPages}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

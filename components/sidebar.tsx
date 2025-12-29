@@ -52,8 +52,8 @@ export function Sidebar() {
       ],
     },
     {
-      id: "Monthly Fee",
-      label: "Monthly Fee",
+      id: "Interest Fees",
+      label: "Interest Fees",
       icon: DollarSign,
       submenu: [
         { label: "Fee Entry", icon: Plus, href: "/fees/entry" },
