@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Trash2, Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Dialog,
   DialogContent,
@@ -51,7 +52,7 @@ export default function SettingsPage() {
   const [isDeleting, setIsDeleting] = useState(false)
 
   // Annual Data State
-  const [totalMembers, setTotalMembers] = useState("...")
+  const [totalMembers, setTotalMembers] = useState<string | null>(null)
 
   const fetchUsers = async () => {
     try {
@@ -172,16 +173,16 @@ export default function SettingsPage() {
           </div>
 
           <Tabs defaultValue="users" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-muted/50 p-1.5 h-14 rounded-full">
+            <TabsList className="grid w-full grid-cols-2 bg-muted/50 rounded-full h-16 p-2">
               <TabsTrigger 
                 value="users" 
-                className="rounded-full h-full data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-foreground text-muted-foreground transition-all"
+                className="rounded-full h-full data-[state=active]:bg-white data-[state=active]:!bg-white data-[state=active]:text-foreground text-muted-foreground transition-all border-0 shadow-none ring-0 scale-95 data-[state=active]:scale-85"
               >
                 Users
               </TabsTrigger>
               <TabsTrigger 
                 value="annual-data"
-                className="rounded-full h-full data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-foreground text-muted-foreground transition-all"
+                className="rounded-full h-full data-[state=active]:bg-white data-[state=active]:!bg-white data-[state=active]:text-foreground text-muted-foreground transition-all border-0 shadow-none ring-0 scale-95 data-[state=active]:scale-85"
               >
                 Annual Data
               </TabsTrigger>
@@ -200,8 +201,21 @@ export default function SettingsPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {loading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    <div className="space-y-4">
+                      {Array(5).fill(0).map((_, i) => (
+                        <div key={i} className="flex items-center justify-between p-4 rounded-lg border bg-card">
+                          <div className="flex items-center gap-4">
+                            <Skeleton className="h-10 w-10 rounded-full" />
+                            <div className="space-y-2">
+                              <Skeleton className="h-4 w-32" />
+                              <Skeleton className="h-3 w-48" />
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <Skeleton className="h-8 w-8 rounded-md" />
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   ) : users.length === 0 ? (
                      <div className="text-center py-8 text-muted-foreground text-sm">
@@ -251,7 +265,11 @@ export default function SettingsPage() {
                 <CardContent>
                   <div className="grid grid-cols-4 gap-8 py-8 text-center">
                     <div>
-                      <p className="text-4xl font-bold">{totalMembers}</p>
+                      {totalMembers === null ? (
+                        <Skeleton className="h-10 w-24 mx-auto mb-2" />
+                      ) : (
+                        <p className="text-4xl font-bold">{totalMembers}</p>
+                      )}
                       <p className="text-sm text-muted-foreground mt-2">Members</p>
                     </div>
                     <div>
