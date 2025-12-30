@@ -12,6 +12,7 @@ import { createClient } from "@/utils/supabase/client"
 export function DashboardContent() {
   const [totalMembers, setTotalMembers] = useState("...")
   const [newMembersText, setNewMembersText] = useState("...")
+  const [activeMembers, setActiveMembers] = useState("...")
   
   useEffect(() => {
     const fetchStats = async () => {
@@ -38,6 +39,16 @@ export function DashboardContent() {
       if (newCount !== null) {
         setNewMembersText(`+${newCount} new this month`)
       }
+
+      // Get active members count
+      const { count: activeCount } = await supabase
+        .from('members')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'active')
+
+      if (activeCount !== null) {
+        setActiveMembers(activeCount.toString())
+      }
     }
 
     fetchStats()
@@ -58,7 +69,7 @@ export function DashboardContent() {
         <div className="grid grid-cols-4 gap-6 mb-8">
           <KpiCard title="Total Members" value={totalMembers} change={newMembersText} icon="users" />
           <KpiCard title="Interest Monthly Fees" value="N154,600" change="+16% from last month" icon="wallet" />
-          <KpiCard title="Active Loans" value="25" change="12.5M total amount" icon="briefcase" />
+          <KpiCard title="Active Loans" value={activeMembers} change="Members with active status" icon="briefcase" />
           <KpiCard title="Total Profit" value="N1.25M" change="+22% this month" icon="trending" />
         </div>
 
