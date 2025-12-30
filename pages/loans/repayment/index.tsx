@@ -45,7 +45,7 @@ import { format, isBefore, startOfDay } from "date-fns";
 import { LoanRepaymentSummary, Repayment } from "../types";
 
 export default function RepaymentPage() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const { toast } = useToast();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -63,13 +63,12 @@ export default function RepaymentPage() {
 
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Bank Transfer");
-  const [paymentDate, setPaymentDate] = useState(
-    format(new Date(), "yyyy-MM-dd")
-  );
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAmountInvalid, setIsAmountInvalid] = useState(false);
 
   const fetchSummaries = useCallback(async () => {
+    await Promise.resolve();
     setIsLoading(true);
     const { data, error } = await supabase.rpc("get_loan_repayment_summaries");
 
@@ -87,7 +86,10 @@ export default function RepaymentPage() {
   }, [supabase, toast]);
 
   useEffect(() => {
-    fetchSummaries();
+    const timer = setTimeout(() => {
+      fetchSummaries();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [fetchSummaries]);
 
   const filteredSummaries = useMemo(() => {
@@ -130,21 +132,25 @@ export default function RepaymentPage() {
     setSelectedSummary(summary);
     setPaymentAmount(summary.interval_amount.toString());
     setIsModalOpen(true);
-
-    // Fetch upcoming installments for this loan
     setIsFetchingInstallments(true);
+
     const { data, error } = await supabase
       .from("repayments")
       .select("*")
       .eq("loan_id", summary.loan_id)
       .neq("status", "paid")
-      .order("installment_number", { ascending: true })
-      .limit(1);
+      .order("due_date", { ascending: true });
 
     if (error) {
       console.error("Error fetching installments:", error);
     } else {
+      const installment = data?.[0];
       setUpcomingInstallments(data || []);
+      if (installment) {
+        setPaymentAmount(
+          (installment.amount_due - installment.amount_paid).toString()
+        );
+      }
     }
     setIsFetchingInstallments(false);
   };
@@ -155,6 +161,7 @@ export default function RepaymentPage() {
     setIsSubmitting(true);
     const installment = upcomingInstallments[0];
     const amount = parseFloat(paymentAmount);
+    const remaining = installment.amount_due - installment.amount_paid;
 
     if (isNaN(amount) || amount <= 0) {
       toast({
@@ -166,18 +173,23 @@ export default function RepaymentPage() {
       return;
     }
 
+    if (amount > remaining) {
+      toast({
+        title: "Amount Exceeded",
+        description: `Payment cannot exceed the remaining balance of ₦${remaining.toLocaleString()}`,
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
     const { error } = await supabase
       .from("repayments")
       .update({
         amount_paid: installment.amount_paid + amount,
-        paid_at: new Date(paymentDate).toISOString(),
-        status:
-          installment.amount_paid + amount >= installment.amount_due
-            ? "paid"
-            : "pending",
-        notes: notes ? notes : installment.notes,
+        notes: notes || installment.notes || "",
       })
-      .eq("id", installment.id);
+      .eq("id", installment.id!);
 
     if (error) {
       toast({
@@ -354,7 +366,9 @@ export default function RepaymentPage() {
                         s.next_due &&
                         isBefore(new Date(s.next_due), startOfDay(new Date()));
                       const paidPercentage =
-                        (s.repayments_paid / s.repayments) * 100;
+                        s.repayments > 0
+                          ? (s.repayments_paid / s.repayments) * 100
+                          : 0;
 
                       return (
                         <TableRow
@@ -368,11 +382,14 @@ export default function RepaymentPage() {
                                   {s.member.name?.charAt(0)}
                                 </AvatarFallback>
                               </Avatar>
-                              <div>
-                                <p className="font-bold text-[11px] text-gray-900 leading-tight">
+                              <div className="min-w-0">
+                                <p
+                                  className="font-bold text-[11px] text-gray-900 leading-tight truncate w-[100px]"
+                                  title={s.member.name}
+                                >
                                   {s.member.name}
                                 </p>
-                                <p className="text-[10px] text-gray-400 font-mono mt-0.5 tracking-tighter">
+                                <p className="text-[10px] text-gray-400 font-mono mt-0.5 tracking-tighter truncate">
                                   {s.member.member_id}
                                 </p>
                               </div>
@@ -393,23 +410,23 @@ export default function RepaymentPage() {
                             </div>
                           </TableCell>
                           <TableCell className="text-center">
-                            <div className="inline-grid grid-cols-[auto,1fr] gap-x-3 text-[10px] leading-relaxed">
+                            <div className="inline-grid grid-cols-[auto,auto] gap-x-3 text-[10px] leading-relaxed">
                               <span className="text-gray-400 text-left">
                                 Paid:
                               </span>
-                              <span className="font-bold text-gray-700 text-right">
+                              <span className="font-bold text-gray-700 text-left">
                                 ₦{Number(s.paid).toLocaleString()}
                               </span>
                               <span className="text-gray-400 text-left">
                                 Remaining:
                               </span>
-                              <span className="font-bold text-gray-700 text-right">
+                              <span className="font-bold text-gray-700 text-left">
                                 ₦{Number(s.remaining).toLocaleString()}
                               </span>
                               <span className="text-gray-400 text-left">
                                 Interval:
                               </span>
-                              <span className="font-bold text-gray-700 text-right">
+                              <span className="font-bold text-gray-700 text-left">
                                 ₦{Number(s.interval_amount).toLocaleString()}
                               </span>
                             </div>
@@ -478,19 +495,49 @@ export default function RepaymentPage() {
           )}
         >
           <ScrollArea className="max-h-[80vh]">
-            <div className="p-10 space-y-8">
-              <DialogHeader>
-                <DialogTitle className="text-xl font-medium tracking-tight text-gray-900 border-none">
-                  Record Payment
-                </DialogTitle>
+            <div className="p-10 space-y-4">
+              <DialogHeader className="p-0">
+                <DialogTitle className="sr-only">Record Payment</DialogTitle>
               </DialogHeader>
 
               {selectedSummary && (
-                <div className="space-y-8">
+                <div className="space-y-4">
+                  {/* Status & Installment Info */}
+                  <div className="flex items-center justify-between px-1">
+                    <div className="space-y-1">
+                      <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                        Current Milestone
+                      </p>
+                      <h4 className="text-sm font-bold text-gray-900">
+                        Installment{" "}
+                        {upcomingInstallments[0]?.installment_number || 0} of{" "}
+                        {selectedSummary.repayments}
+                      </h4>
+                    </div>
+                    <div className="text-right space-y-1">
+                      <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                        Remaining for this installment
+                      </p>
+                      <h4
+                        className={cn(
+                          "text-sm font-bold",
+                          isAmountInvalid ? "text-red-500" : "text-black"
+                        )}
+                      >
+                        ₦
+                        {(upcomingInstallments[0]
+                          ? upcomingInstallments[0].amount_due -
+                            upcomingInstallments[0].amount_paid
+                          : 0
+                        ).toLocaleString()}
+                      </h4>
+                    </div>
+                  </div>
+
                   {/* Summary Card */}
                   <Card className="bg-gray-50/30 border border-gray-100/50 rounded-2xl shadow-none">
                     <CardContent className="p-8 grid grid-cols-2 gap-x-12 gap-y-8">
-                      <div className="space-y-1.5">
+                      <div className="space-y-1">
                         <p className="text-[13px] font-medium text-gray-400">
                           Member
                         </p>
@@ -499,7 +546,7 @@ export default function RepaymentPage() {
                         </p>
                       </div>
 
-                      <div className="space-y-1.5">
+                      <div className="space-y-1">
                         <p className="text-[13px] font-medium text-gray-400">
                           Remaining Balance
                         </p>
@@ -508,7 +555,7 @@ export default function RepaymentPage() {
                         </p>
                       </div>
 
-                      <div className="space-y-1.5">
+                      <div className="space-y-1">
                         <p className="text-[13px] font-medium text-gray-400">
                           Installment Amount
                         </p>
@@ -520,7 +567,7 @@ export default function RepaymentPage() {
                         </p>
                       </div>
 
-                      <div className="space-y-1.5">
+                      <div className="space-y-1">
                         <p className="text-[13px] font-medium text-gray-400">
                           Next Due Date
                         </p>
@@ -543,12 +590,33 @@ export default function RepaymentPage() {
                         <label className="text-[15px] font-semibold text-gray-900 ml-0.5">
                           Payment Amount
                         </label>
-                        <Input
-                          type="number"
-                          value={paymentAmount}
-                          onChange={(e) => setPaymentAmount(e.target.value)}
-                          className="bg-[#F4F4F4] border-none h-14 text-[15px] font-medium rounded-xl focus:ring-1 ring-gray-200"
-                        />
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            value={paymentAmount}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setPaymentAmount(val);
+                              if (upcomingInstallments[0]) {
+                                const remaining =
+                                  upcomingInstallments[0].amount_due -
+                                  upcomingInstallments[0].amount_paid;
+                                setIsAmountInvalid(parseFloat(val) > remaining);
+                              }
+                            }}
+                            className={cn(
+                              "bg-[#F4F4F4] border-none text-[15px] font-medium rounded-xl focus:ring-1 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                              isAmountInvalid
+                                ? "ring-2 ring-red-500 bg-red-50 text-red-900"
+                                : "ring-gray-200"
+                            )}
+                          />
+                          {isAmountInvalid && (
+                            <p className="text-[10px] font-bold text-red-500 absolute -bottom-5 left-1 uppercase tracking-tight">
+                              Amount exceeds remaining balance
+                            </p>
+                          )}
+                        </div>
                       </div>
                       <div className="space-y-2.5">
                         <label className="text-[15px] font-semibold text-gray-900 ml-0.5">
@@ -558,7 +626,7 @@ export default function RepaymentPage() {
                           value={paymentMethod}
                           onValueChange={setPaymentMethod}
                         >
-                          <SelectTrigger className="bg-[#F4F4F4] border-none h-14 text-[15px] font-medium rounded-xl focus:ring-1 ring-gray-200">
+                          <SelectTrigger className="bg-[#F4F4F4] border-none h-14 text-[15px] font-medium rounded-xl focus:ring-1 ring-gray-200 w-full">
                             <SelectValue placeholder="Select method" />
                           </SelectTrigger>
                           <SelectContent className="rounded-xl border-gray-100 shadow-xl">
@@ -576,27 +644,13 @@ export default function RepaymentPage() {
 
                     <div className="space-y-2.5">
                       <label className="text-[15px] font-semibold text-gray-900 ml-0.5">
-                        Payment Date
-                      </label>
-                      <div className="relative">
-                        <Input
-                          type="date"
-                          value={paymentDate}
-                          onChange={(e) => setPaymentDate(e.target.value)}
-                          className="bg-[#F4F4F4] border-none h-14 text-[15px] font-medium rounded-xl focus:ring-1 ring-gray-200 pl-4"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      <label className="text-[15px] font-semibold text-gray-900 ml-0.5">
                         Notes (Optional)
                       </label>
                       <Textarea
                         placeholder="Add any notes about the payment..."
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
-                        className="bg-[#F4F4F4] border-none min-h-30 text-[15px] font-medium rounded-2xl resize-none py-4 px-5 focus-visible:ring-1 ring-gray-200 placeholder:text-gray-400"
+                        className="bg-[#F4F4F4] border-none min-h-30 text-[15px] font-medium rounded-2xl resize-none px-5 focus-visible:ring-1 ring-gray-200 placeholder:text-gray-400"
                       />
                     </div>
                   </div>
@@ -611,9 +665,18 @@ export default function RepaymentPage() {
                       Cancel
                     </Button>
                     <Button
-                      className="h-12 px-8 bg-black hover:bg-black/90 text-white text-[15px] font-semibold rounded-xl active:scale-95 transition-all min-w-50"
+                      className={cn(
+                        "h-12 px-8 text-white text-[15px] font-semibold rounded-xl active:scale-95 transition-all min-w-50",
+                        isAmountInvalid
+                          ? "bg-red-500 hover:bg-red-600 disabled:opacity-70"
+                          : "bg-black hover:bg-black/90"
+                      )}
                       onClick={handleConfirmPayment}
-                      disabled={isSubmitting || isFetchingInstallments}
+                      disabled={
+                        isSubmitting ||
+                        isFetchingInstallments ||
+                        isAmountInvalid
+                      }
                     >
                       {isSubmitting ? (
                         <Loader2 className="h-5 w-5 animate-spin" />

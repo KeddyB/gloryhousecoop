@@ -6,6 +6,7 @@ export type LoanState =
   | "rejected"
   | "active"
   | "disbursed"
+  | "paid"
   | "repaid";
 
 export interface Loan {
@@ -26,6 +27,8 @@ export interface Loan {
   member?: Partial<Member>;
   disbursements?: Disbursement[];
   interval: number;
+  amount_paid: number;
+  due_date?: string;
 }
 
 export interface Disbursement {
