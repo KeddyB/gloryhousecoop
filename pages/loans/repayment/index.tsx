@@ -80,6 +80,7 @@ export default function RepaymentPage() {
         variant: "destructive",
       });
     } else {
+      console.log("summaries>>>>>>", data);
       setSummaries(data || []);
     }
     setIsLoading(false);
@@ -353,9 +354,7 @@ export default function RepaymentPage() {
                         s.next_due &&
                         isBefore(new Date(s.next_due), startOfDay(new Date()));
                       const paidPercentage =
-                        (Number(s.paid) /
-                          (Number(s.paid) + Number(s.remaining))) *
-                        100;
+                        (s.repayments_paid / s.repayments) * 100;
 
                       return (
                         <TableRow
@@ -383,11 +382,8 @@ export default function RepaymentPage() {
                             <div className="flex flex-col items-center gap-1.5 min-w-30">
                               <div className="flex justify-between w-full text-[10px] font-medium text-gray-500 px-1">
                                 <span>
-                                  {Math.round(
-                                    Number(s.paid) /
-                                      Number(s.interval_amount) || 0
-                                  )}
-                                  /{s.repayments} installments
+                                  {s.repayments_paid}/{s.repayments}{" "}
+                                  installments
                                 </span>
                               </div>
                               <Progress
@@ -436,12 +432,20 @@ export default function RepaymentPage() {
                             <span
                               className={cn(
                                 "inline-flex items-center px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-tighter border",
-                                !isOverdue
-                                  ? "border-black bg-black text-white"
-                                  : "border-red-500 bg-red-500 text-white"
+                                s.status === "paid"
+                                  ? "border-green-500 bg-green-500 text-white"
+                                  : isOverdue
+                                  ? "border-red-500 bg-red-500 text-white"
+                                  : s.status === "partial"
+                                  ? "border-orange-500 bg-orange-500 text-white"
+                                  : "border-black bg-black text-white"
                               )}
                             >
-                              {isOverdue ? "overdue" : "active"}
+                              {s.status === "paid"
+                                ? "paid"
+                                : isOverdue
+                                ? "overdue"
+                                : s.status}
                             </span>
                           </TableCell>
                           <TableCell className="text-right px-6">

@@ -66,4 +66,6 @@ export interface LoanRepaymentSummary {
   remaining: number;
   interval_amount: number;
   next_due: string;
+  repayments_paid: number;
+  status: string;
 }
