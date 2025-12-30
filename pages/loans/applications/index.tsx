@@ -337,7 +337,7 @@ function LoanApplicationForm() {
     <div className="flex h-screen bg-background">
       <Sidebar />
       <div className="flex-1 overflow-auto bg-gray-50/50">
-        <div className="p-8 max-w-5xl mx-auto space-y-8">
+        <div className="p-8 w-full mx-auto space-y-8">
           {/* Header */}
           <div className="flex items-center gap-4">
             <Button

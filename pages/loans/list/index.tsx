@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Sidebar } from "@/components/sidebar";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -24,7 +23,6 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Search,
-  ChevronDown,
   CheckCircle2,
   Clock,
   AlertCircle,
@@ -164,7 +162,7 @@ export default function LoanListPage() {
     <div className="flex h-screen bg-[#FDFDFD]">
       <Sidebar />
       <div className="flex-1 overflow-auto">
-        <div className="p-10 max-w-7xl mx-auto space-y-10">
+        <div className="p-10 w-full mx-auto space-y-10">
           {/* Header */}
           <div className="space-y-1">
             <h1 className="text-3xl font-semibold tracking-tight text-[#1A1A1A]">

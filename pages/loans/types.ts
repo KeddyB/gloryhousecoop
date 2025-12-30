@@ -71,4 +71,5 @@ export interface LoanRepaymentSummary {
   next_due: string;
   repayments_paid: number;
   status: string;
+  latest_update: string;
 }

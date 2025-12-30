@@ -231,7 +231,7 @@ export default function DisbursementPage() {
     <div className="flex h-screen bg-gray-50/50">
       <Sidebar />
       <div className="flex-1 overflow-auto p-8">
-        <div className="max-w-6xl mx-auto space-y-8">
+        <div className="w-full mx-auto space-y-8">
           {/* Header */}
           <div>
             <h1 className="text-2xl font-bold text-gray-900 uppercase">

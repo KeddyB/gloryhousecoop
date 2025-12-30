@@ -93,21 +93,28 @@ export default function RepaymentPage() {
   }, [fetchSummaries]);
 
   const filteredSummaries = useMemo(() => {
-    return summaries.filter((s) => {
-      const name = (s.member.name || "").toLowerCase();
-      const id = (s.member.member_id || "").toLowerCase();
-      const query = searchQuery.toLowerCase();
-      const matchesSearch = name.includes(query) || id.includes(query);
+    return summaries
+      .filter((s) => {
+        const name = (s.member.name || "").toLowerCase();
+        const id = (s.member.member_id || "").toLowerCase();
+        const query = searchQuery.toLowerCase();
+        const matchesSearch = name.includes(query) || id.includes(query);
 
-      if (statusFilter === "all") return matchesSearch;
+        if (statusFilter === "all") return matchesSearch;
 
-      const isOverdue =
-        s.next_due && isBefore(new Date(s.next_due), startOfDay(new Date()));
-      if (statusFilter === "overdue") return matchesSearch && isOverdue;
-      if (statusFilter === "active") return matchesSearch && !isOverdue;
+        const isOverdue =
+          s.next_due && isBefore(new Date(s.next_due), startOfDay(new Date()));
+        if (statusFilter === "overdue") return matchesSearch && isOverdue;
+        if (statusFilter === "active") return matchesSearch && !isOverdue;
 
-      return matchesSearch;
-    });
+        return matchesSearch;
+      })
+      .sort((a, b) => {
+        return (
+          new Date(b.latest_update).getTime() -
+          new Date(a.latest_update).getTime()
+        );
+      });
   }, [summaries, searchQuery, statusFilter]);
 
   const stats = useMemo(() => {
@@ -212,7 +219,7 @@ export default function RepaymentPage() {
     <div className="flex h-screen bg-gray-50/50">
       <Sidebar />
       <div className="flex-1 overflow-auto p-8">
-        <div className="max-w-6xl mx-auto space-y-8">
+        <div className="w-full mx-auto space-y-8">
           {/* Header */}
           <div className="flex justify-between items-start">
             <div>
@@ -227,67 +234,67 @@ export default function RepaymentPage() {
 
           {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Card className="border-none shadow-sm rounded-2xl overflow-hidden">
-              <CardContent className="p-6 flex justify-between items-center">
-                <div>
-                  <p className="text-[10px] uppercase font-bold text-gray-400 mb-1 tracking-wider">
+            <Card className="border-none shadow-sm rounded-2xl overflow-hidden bg-white">
+              <CardContent className="px-6 py-4">
+                <div className="flex justify-between items-center mb-1">
+                  <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
                     Total Outstanding
                   </p>
-                  <h3 className="text-2xl font-bold text-gray-900">
-                    ₦{stats.totalOutstanding.toLocaleString()}
-                  </h3>
+                  <div className="h-8 w-8 bg-blue-50 rounded-xl flex items-center justify-center border border-blue-100 shrink-0 shadow-sm">
+                    <span className="text-blue-600 font-bold text-lg">₦</span>
+                  </div>
                 </div>
-                <div className="h-10 w-10 bg-blue-50 rounded-xl flex items-center justify-center border border-blue-100">
-                  <span className="text-blue-600 font-bold text-lg">₦</span>
-                </div>
+                <h3 className="text-2xl font-bold text-gray-900 truncate">
+                  ₦{stats.totalOutstanding.toLocaleString()}
+                </h3>
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-sm rounded-2xl overflow-hidden">
-              <CardContent className="p-6 flex justify-between items-center">
-                <div>
-                  <p className="text-[10px] uppercase font-bold text-gray-400 mb-1 tracking-wider">
+            <Card className="border-none shadow-sm rounded-2xl overflow-hidden bg-white">
+              <CardContent className="px-6 py-4">
+                <div className="flex justify-between items-center mb-1">
+                  <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
                     Overdue Loans
                   </p>
-                  <h3 className="text-2xl font-bold text-gray-900">
-                    {stats.overdueCount}
-                  </h3>
+                  <div className="h-8 w-8 bg-red-50 rounded-xl flex items-center justify-center border border-red-100 shrink-0 shadow-sm">
+                    <AlertCircle className="h-4 w-4 text-red-600" />
+                  </div>
                 </div>
-                <div className="h-10 w-10 bg-red-50 rounded-xl flex items-center justify-center border border-red-100">
-                  <AlertCircle className="h-5 w-5 text-red-600" />
-                </div>
+                <h3 className="text-2xl font-bold text-gray-900 truncate">
+                  {stats.overdueCount}
+                </h3>
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-sm rounded-2xl overflow-hidden">
-              <CardContent className="p-6 flex justify-between items-center">
-                <div>
-                  <p className="text-[10px] uppercase font-bold text-gray-400 mb-1 tracking-wider">
+            <Card className="border-none shadow-sm rounded-2xl overflow-hidden bg-white">
+              <CardContent className="px-6 py-4">
+                <div className="flex justify-between items-center mb-1">
+                  <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
                     Total Collected
                   </p>
-                  <h3 className="text-2xl font-bold text-gray-900">
-                    ₦{stats.totalPaid.toLocaleString()}
-                  </h3>
+                  <div className="h-8 w-8 bg-green-50 rounded-xl flex items-center justify-center border border-green-100 shrink-0 shadow-sm">
+                    <Banknote className="h-4 w-4 text-green-600" />
+                  </div>
                 </div>
-                <div className="h-10 w-10 bg-green-50 rounded-xl flex items-center justify-center border border-green-100">
-                  <Banknote className="h-5 w-5 text-green-600" />
-                </div>
+                <h3 className="text-2xl font-bold text-gray-900 truncate">
+                  ₦{stats.totalPaid.toLocaleString()}
+                </h3>
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-sm rounded-2xl overflow-hidden">
-              <CardContent className="p-6 flex justify-between items-center">
-                <div>
-                  <p className="text-[10px] uppercase font-bold text-gray-400 mb-1 tracking-wider">
+            <Card className="border-none shadow-sm rounded-2xl overflow-hidden bg-white">
+              <CardContent className="px-6 py-4">
+                <div className="flex justify-between items-center mb-1">
+                  <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
                     Collection Rate
                   </p>
-                  <h3 className="text-2xl font-bold text-gray-900">
-                    {stats.collectionRate}%
-                  </h3>
+                  <div className="h-8 w-8 bg-purple-50 rounded-xl flex items-center justify-center border border-purple-100 shrink-0 shadow-sm">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600" />
+                  </div>
                 </div>
-                <div className="h-10 w-10 bg-purple-50 rounded-xl flex items-center justify-center border border-purple-100">
-                  <CheckCircle2 className="h-5 w-5 text-purple-600" />
-                </div>
+                <h3 className="text-2xl font-bold text-gray-900 truncate">
+                  {stats.collectionRate}%
+                </h3>
               </CardContent>
             </Card>
           </div>
@@ -409,26 +416,28 @@ export default function RepaymentPage() {
                               />
                             </div>
                           </TableCell>
-                          <TableCell className="text-center">
-                            <div className="inline-grid grid-cols-[auto,auto] gap-x-3 text-[10px] leading-relaxed">
-                              <span className="text-gray-400 text-left">
-                                Paid:
-                              </span>
-                              <span className="font-bold text-gray-700 text-left">
-                                ₦{Number(s.paid).toLocaleString()}
-                              </span>
-                              <span className="text-gray-400 text-left">
-                                Remaining:
-                              </span>
-                              <span className="font-bold text-gray-700 text-left">
-                                ₦{Number(s.remaining).toLocaleString()}
-                              </span>
-                              <span className="text-gray-400 text-left">
-                                Interval:
-                              </span>
-                              <span className="font-bold text-gray-700 text-left">
-                                ₦{Number(s.interval_amount).toLocaleString()}
-                              </span>
+                          <TableCell>
+                            <div className="flex flex-col gap-1 text-[10px] min-w-35">
+                              <div className="flex justify-between items-center bg-gray-50/50 px-2 py-0.5 rounded border border-gray-100/50">
+                                <span className="text-gray-400">Paid:</span>
+                                <span className="font-bold text-gray-700">
+                                  ₦{Number(s.paid).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center bg-gray-50/50 px-2 py-0.5 rounded border border-gray-100/50">
+                                <span className="text-gray-400">
+                                  Remaining:
+                                </span>
+                                <span className="font-bold text-gray-700">
+                                  ₦{Number(s.remaining).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center bg-gray-50/50 px-2 py-0.5 rounded border border-gray-100/50">
+                                <span className="text-gray-400">Interval:</span>
+                                <span className="font-bold text-gray-700">
+                                  ₦{Number(s.interval_amount).toLocaleString()}
+                                </span>
+                              </div>
                             </div>
                           </TableCell>
                           <TableCell className="text-center">
