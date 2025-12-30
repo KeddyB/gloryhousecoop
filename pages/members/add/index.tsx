@@ -189,7 +189,7 @@ function AddMemberForm() {
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
-      <div className="flex-1 overflow-auto bg-gray-50/50">
+      <div className="flex-1 overflow-auto">
         <div className="p-8 space-y-8">
           {/* Header */}
           <div className="flex items-center gap-4">
