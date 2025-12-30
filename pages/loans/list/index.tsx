@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Sidebar } from "@/components/sidebar";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -24,7 +23,6 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Search,
-  ChevronDown,
   CheckCircle2,
   Clock,
   AlertCircle,
@@ -117,8 +115,23 @@ export default function LoanListPage() {
     return { active, pending, overdue, totalDisbursed };
   }, [loans]);
 
-  const getStatusConfig = (status: LoanState) => {
+  const getStatusConfig = (status: LoanState, dueDate?: string) => {
+    // Check for overdue (conditional render)
+    if (status !== "paid" && status !== "repaid" && dueDate) {
+      if (new Date() > new Date(dueDate)) {
+        return {
+          label: "overdue",
+          className: "bg-[#E03131] text-white hover:bg-[#E03131]/90",
+        };
+      }
+    }
+
     switch (status) {
+      case "paid":
+        return {
+          label: "paid",
+          className: "bg-[#2B8A3E] text-white hover:bg-[#2B8A3E]/90",
+        };
       case "active":
         return {
           label: "active",
@@ -137,7 +150,7 @@ export default function LoanListPage() {
         };
       case "rejected":
         return {
-          label: "overdue",
+          label: "rejected",
           className: "bg-[#E03131] text-white hover:bg-[#E03131]/90",
         };
       default:
@@ -149,7 +162,7 @@ export default function LoanListPage() {
     <div className="flex h-screen bg-[#FDFDFD]">
       <Sidebar />
       <div className="flex-1 overflow-auto">
-        <div className="p-10 max-w-7xl mx-auto space-y-10">
+        <div className="p-10 w-full mx-auto space-y-10">
           {/* Header */}
           <div className="space-y-1">
             <h1 className="text-3xl font-semibold tracking-tight text-[#1A1A1A]">
@@ -298,10 +311,19 @@ export default function LoanListPage() {
                     </TableRow>
                   ) : (
                     filteredLoans.map((loan) => {
-                      const statusConfig = getStatusConfig(loan.state);
+                      const statusConfig = getStatusConfig(
+                        loan.state,
+                        loan.due_date
+                      );
                       const memberInitials = (loan.member?.name || "??")
                         .substring(0, 2)
                         .toUpperCase();
+
+                      const amountPaid = loan.amount_paid || 0;
+                      const remaining = Math.max(
+                        0,
+                        (loan.loan_amount || 0) - amountPaid
+                      );
 
                       return (
                         <TableRow
@@ -340,13 +362,13 @@ export default function LoanListPage() {
                               <p className="text-[#666666] text-xs font-medium">
                                 Paid:{" "}
                                 <span className="text-[#1A1A1A] font-semibold">
-                                  N0
+                                  N{amountPaid.toLocaleString()}
                                 </span>
                               </p>
                               <p className="text-[#666666] text-xs font-medium mt-1">
                                 Remaining:{" "}
                                 <span className="text-[#1A1A1A] font-semibold">
-                                  N{Number(loan.loan_amount).toLocaleString()}
+                                  N{remaining.toLocaleString()}
                                 </span>
                               </p>
                             </div>
@@ -362,8 +384,8 @@ export default function LoanListPage() {
                             </Badge>
                           </TableCell>
                           <TableCell className="px-8 font-semibold text-[#1A1A1A] text-[15px]">
-                            {loan.created_at
-                              ? format(new Date(loan.created_at), "dd/MM/yyyy")
+                            {loan.due_date
+                              ? format(new Date(loan.due_date), "dd/MM/yyyy")
                               : "N/A"}
                           </TableCell>
                         </TableRow>

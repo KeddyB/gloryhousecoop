@@ -180,9 +180,12 @@ export default function DisbursementPage() {
       p_notes: notes,
       p_disbursed_by: user.id,
       p_disbursed_by_name: operatorName,
+      p_tenure_months: selectedLoan.tenure,
+      p_interval_months: selectedLoan.interval,
     });
 
     if (rpcError) {
+      console.log(rpcError);
       toast({
         title: "Disbursement Failed",
         description: rpcError.message,
@@ -228,7 +231,7 @@ export default function DisbursementPage() {
     <div className="flex h-screen bg-gray-50/50">
       <Sidebar />
       <div className="flex-1 overflow-auto p-8">
-        <div className="max-w-6xl mx-auto space-y-8">
+        <div className="w-full mx-auto space-y-8">
           {/* Header */}
           <div>
             <h1 className="text-2xl font-bold text-gray-900 uppercase">
@@ -563,6 +566,7 @@ export default function DisbursementPage() {
                       <div className="relative">
                         <Input
                           value={disbursementAmount}
+                          readOnly
                           onChange={(e) =>
                             setDisbursementAmount(e.target.value)
                           }
@@ -580,7 +584,7 @@ export default function DisbursementPage() {
                         value={disbursementMethod}
                         onValueChange={setDisbursementMethod}
                       >
-                        <SelectTrigger className="bg-[#F4F4F4] border-none h-14 text-[15px] font-medium rounded-xl focus:ring-1 ring-gray-200">
+                        <SelectTrigger className="bg-[#F4F4F4] border-none h-14 text-[15px] font-medium rounded-xl focus:ring-1 ring-gray-200 w-full">
                           <SelectValue placeholder="Select method" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl border-gray-100 shadow-xl">
