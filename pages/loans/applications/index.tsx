@@ -78,6 +78,7 @@ function LoanApplicationForm() {
     collateralType: "",
     collateralValue: "",
     tenure: "",
+    paymentInterval: "",
     purpose: "",
     thirdPartyName: "",
     thirdPartyPhone: "",
@@ -227,7 +228,8 @@ function LoanApplicationForm() {
           !formData.collateralType ||
           !formData.collateralValue ||
           !formData.tenure ||
-          !formData.purpose
+          !formData.purpose ||
+          !formData.paymentInterval
         ) {
           toast({
             title: "Validation Error",
@@ -277,6 +279,7 @@ function LoanApplicationForm() {
         collateral_type: formData.collateralType,
         collateral_value: Number(formData.collateralValue) || 0,
         tenure: Number(formData.tenure),
+        interval: Number(formData.paymentInterval),
         purpose: formData.purpose,
         third_party_name: formData.thirdPartyName,
         third_party_number: formData.thirdPartyPhone,
@@ -313,7 +316,8 @@ function LoanApplicationForm() {
           !!formData.collateralType &&
           !!formData.collateralValue &&
           !!formData.tenure &&
-          !!formData.purpose
+          !!formData.purpose &&
+          !!formData.paymentInterval
         );
       case 3:
         return !!formData.thirdPartyName && !!formData.thirdPartyPhone;
@@ -448,8 +452,6 @@ function LoanApplicationForm() {
                           key={member.member_id}
                           onClick={() => {
                             setSelectedMember(member);
-                            setSearchQuery("");
-                            setMemberPage(1);
                           }}
                           className={cn(
                             "flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer hover:bg-gray-50",
@@ -587,23 +589,16 @@ function LoanApplicationForm() {
                       <label className="text-sm font-medium">
                         Collateral Type *
                       </label>
-                      <Select
-                        onValueChange={(v) =>
-                          handleSelectChange("collateralType", v)
-                        }
+                      <Input
+                        name="collateralType"
+                        type="text"
                         value={formData.collateralType}
-                      >
-                        <SelectTrigger className="bg-gray-50 border-none h-12">
-                          <SelectValue placeholder="Select collateral type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="property">Property</SelectItem>
-                          <SelectItem value="vehicle">Vehicle</SelectItem>
-                          <SelectItem value="savings">Savings</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        onChange={handleChange}
+                        placeholder="Enter collateral Type"
+                        className="bg-gray-50 border-none h-12"
+                      />
                     </div>
+
                     <div className="space-y-2">
                       <label className="text-sm font-medium">
                         Collateral Value *
@@ -625,13 +620,38 @@ function LoanApplicationForm() {
                         onValueChange={(v) => handleSelectChange("tenure", v)}
                         value={formData.tenure}
                       >
-                        <SelectTrigger className="bg-gray-50 border-none h-12">
+                        <SelectTrigger className="bg-gray-50 border-none h-12 w-full">
                           <SelectValue placeholder="Select tenure" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="6">6 Months</SelectItem>
                           <SelectItem value="12">12 Months</SelectItem>
                           <SelectItem value="24">24 Months</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">
+                        Repayment Interval *
+                      </label>
+                      <Select
+                        onValueChange={(v) =>
+                          handleSelectChange("paymentInterval", v)
+                        }
+                        value={formData.paymentInterval}
+                      >
+                        <SelectTrigger className="bg-gray-50 border-none h-12 w-full">
+                          <SelectValue placeholder="Select payment interval" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">Monthly</SelectItem>
+                          <SelectItem value="3">
+                            Quarterly (3 months)
+                          </SelectItem>
+                          <SelectItem value="6">
+                            Semi-Annual (6 months)
+                          </SelectItem>
+                          <SelectItem value="12">Annual (12 months)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -899,7 +919,7 @@ function LoanApplicationForm() {
               <Button
                 onClick={handleNext}
                 className={cn(
-                  "px-8 h-12 rounded-xl transition-all font-semibold",
+                  "px-8 h-12 rounded-xl transition-all font-semibold cursor-pointer",
                   isValid
                     ? "bg-black text-white hover:bg-black/90"
                     : "bg-gray-200 text-gray-400 cursor-not-allowed"
