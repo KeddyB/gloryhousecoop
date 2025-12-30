@@ -69,9 +69,7 @@ export function Sidebar() {
         { label: "Disbursement", icon: Banknote, href: "/loans/disbursement" },
         { label: "Loan list", icon: List, href: "/loans/list" },
         { label: "Repayment", icon: RotateCcw, href: "/loans/repayment" },
-        { label: "Collections", icon: Building2, href: "/loans/collections" },
         { label: "Calculator", icon: Calculator, href: "/loans/calculator" },
-        { label: "Loan Report and Analysis", icon: FileText, href: "/loans/report-analysis" },
       ],
     },
     // Reports removed
