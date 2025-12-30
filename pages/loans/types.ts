@@ -6,6 +6,7 @@ export type LoanState =
   | "rejected"
   | "active"
   | "disbursed"
+  | "paid"
   | "repaid";
 
 export interface Loan {
@@ -25,6 +26,9 @@ export interface Loan {
   created_at?: string;
   member?: Partial<Member>;
   disbursements?: Disbursement[];
+  interval: number;
+  amount_paid: number;
+  due_date?: string;
 }
 
 export interface Disbursement {
@@ -38,4 +42,34 @@ export interface Disbursement {
   notes?: string;
   created_at?: string;
   loan?: Loan;
+}
+export interface Repayment {
+  id?: string;
+  loan_id: string;
+  installment_number: number;
+  due_date: string;
+  amount_due: number;
+  amount_paid: number;
+  paid_at?: string;
+  status: "paid" | "pending" | "overdue";
+  created_at?: string;
+  notes: string;
+}
+
+export interface LoanRepaymentSummary {
+  loan_id: string;
+  member: {
+    name: string;
+    member_id: string;
+    avatar_url?: string;
+  };
+  repayments: number;
+  interval: number;
+  paid: number;
+  remaining: number;
+  interval_amount: number;
+  next_due: string;
+  repayments_paid: number;
+  status: string;
+  latest_update: string;
 }
