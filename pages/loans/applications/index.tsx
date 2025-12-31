@@ -148,7 +148,21 @@ function LoanApplicationForm() {
   };
 
   const handleSelectChange = (name: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => {
+      const newData = { ...prev, [name]: value };
+
+      // If tenure changes, check if paymentInterval is still valid
+      if (name === "tenure" && prev.paymentInterval) {
+        const tenure = Number(value);
+        const interval = Number(prev.paymentInterval);
+
+        if (interval > tenure || tenure % interval !== 0) {
+          newData.paymentInterval = "";
+        }
+      }
+
+      return newData;
+    });
   };
 
   const handleFileChange = async (
@@ -235,6 +249,29 @@ function LoanApplicationForm() {
           toast({
             title: "Validation Error",
             description: "Please fill in all required loan details.",
+            variant: "destructive",
+          });
+          return false;
+        }
+
+        const tenure = Number(formData.tenure);
+        const interval = Number(formData.paymentInterval);
+
+        if (interval > tenure) {
+          toast({
+            title: "Validation Error",
+            description:
+              "Repayment interval cannot be greater than loan tenure.",
+            variant: "destructive",
+          });
+          return false;
+        }
+
+        if (tenure % interval !== 0) {
+          toast({
+            title: "Validation Error",
+            description:
+              "Loan tenure must be a multiple of the repayment interval.",
             variant: "destructive",
           });
           return false;
@@ -625,7 +662,9 @@ function LoanApplicationForm() {
                           <SelectValue placeholder="Select tenure" />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="3">3 Months</SelectItem>
                           <SelectItem value="6">6 Months</SelectItem>
+                          <SelectItem value="9">9 Months</SelectItem>
                           <SelectItem value="12">12 Months</SelectItem>
                           <SelectItem value="24">24 Months</SelectItem>
                         </SelectContent>
@@ -646,13 +685,36 @@ function LoanApplicationForm() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="1">Monthly</SelectItem>
-                          <SelectItem value="3">
+                          <SelectItem
+                            value="3"
+                            disabled={
+                              !formData.tenure ||
+                              Number(formData.tenure) < 3 ||
+                              Number(formData.tenure) % 3 !== 0
+                            }
+                          >
                             Quarterly (3 months)
                           </SelectItem>
-                          <SelectItem value="6">
+                          <SelectItem
+                            value="6"
+                            disabled={
+                              !formData.tenure ||
+                              Number(formData.tenure) < 6 ||
+                              Number(formData.tenure) % 6 !== 0
+                            }
+                          >
                             Semi-Annual (6 months)
                           </SelectItem>
-                          <SelectItem value="12">Annual (12 months)</SelectItem>
+                          <SelectItem
+                            value="12"
+                            disabled={
+                              !formData.tenure ||
+                              Number(formData.tenure) < 12 ||
+                              Number(formData.tenure) % 12 !== 0
+                            }
+                          >
+                            Annual (12 months)
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
