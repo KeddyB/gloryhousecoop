@@ -12,7 +12,9 @@ import { createClient } from "@/utils/supabase/client"
 export function DashboardContent() {
   const [totalMembers, setTotalMembers] = useState("...")
   const [newMembersText, setNewMembersText] = useState("...")
-  const [activeMembers, setActiveMembers] = useState("...")
+  const [activeLoansCount, setActiveLoansCount] = useState("...")
+  const [totalInterest, setTotalInterest] = useState("...")
+  const [totalProfit, setTotalProfit] = useState("...")
   
   useEffect(() => {
     const fetchStats = async () => {
@@ -40,15 +42,45 @@ export function DashboardContent() {
         setNewMembersText(`+${newCount} new this month`)
       }
 
-      // Get active members count
-      const { count: activeCount } = await supabase
-        .from('members')
+      // Get Active Loans Count (active or disbursed)
+      const { count: loansCount } = await supabase
+        .from('loans')
         .select('*', { count: 'exact', head: true })
-        .eq('status', 'active')
+        .or('state.eq.active,state.eq.disbursed')
 
-      if (activeCount !== null) {
-        setActiveMembers(activeCount.toString())
+      if (loansCount !== null) {
+        setActiveLoansCount(loansCount.toString())
       }
+
+      // Get Total Interest Paid
+      const { data: interestData } = await supabase
+        .from('interest_payments')
+        .select('amount_paid')
+      
+      const interestSum = interestData?.reduce((sum, item) => sum + (Number(item.amount_paid) || 0), 0) || 0
+      setTotalInterest(`₦${interestSum.toLocaleString()}`)
+
+      // Get Total Repayments
+      const { data: repaymentData } = await supabase
+        .from('repayments')
+        .select('amount_paid')
+      
+      const repaymentSum = repaymentData?.reduce((sum, item) => sum + (Number(item.amount_paid) || 0), 0) || 0
+
+      // Get Total Disbursed (Loans that are not pending/rejected)
+      // We assume loans that are not pending or rejected are disbursed/active/closed
+      const { data: loanData } = await supabase
+        .from('loans')
+        .select('loan_amount')
+        .not('state', 'eq', 'pending')
+        .not('state', 'eq', 'rejected')
+        .not('state', 'eq', 'cancelled')
+
+      const disbursedSum = loanData?.reduce((sum, item) => sum + (Number(item.loan_amount) || 0), 0) || 0
+
+      // Profit = (Interest + Repayments) - Disbursed
+      const profit = (interestSum + repaymentSum) - disbursedSum
+      setTotalProfit(`₦${profit.toLocaleString()}`)
     }
 
     fetchStats()
@@ -68,9 +100,9 @@ export function DashboardContent() {
         {/* KPI Cards */}
         <div className="grid grid-cols-4 gap-6 mb-8">
           <KpiCard title="Total Members" value={totalMembers} change={newMembersText} icon="users" />
-          <KpiCard title="Interest Monthly Fees" value="N154,600" change="+16% from last month" icon="wallet" />
-          <KpiCard title="Active Loans" value={activeMembers} change="Members with active status" icon="briefcase" />
-          <KpiCard title="Total Profit" value="N1.25M" change="+22% this month" icon="trending" />
+          <KpiCard title="Interest Monthly Fees" value={totalInterest} change="Total collected" icon="wallet" />
+          <KpiCard title="Active Loans" value={activeLoansCount} change="Currently active loans" icon="briefcase" />
+          <KpiCard title="Total Profit" value={totalProfit} change="Net cash flow" icon="trending" />
         </div>
 
         {/* Charts */}
