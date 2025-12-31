@@ -127,6 +127,9 @@ function AddMemberForm() {
     setFormSuccess(null);
 
     try {
+      // Get current authenticated user
+      const { data: { user } } = await supabase.auth.getUser();
+
       const { data: existingMembers, error: checkError } = await supabase
         .from("members")
         .select("phone, email")
@@ -161,7 +164,8 @@ function AddMemberForm() {
             nominee_phone: formData.nominee_phone || null,
             account_number: formData.account_number,
             bank_name: formData.bank_name,
-            status: "inactive", // Default status is now inactive
+            status: "inactive",
+            added_by: user?.id, // Capture the current user's ID
           },
         ])
         .select()
