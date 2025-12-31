@@ -183,6 +183,7 @@ export default function DisbursementPage() {
       p_disbursed_by_name: operatorName,
       p_tenure_months: selectedLoan.tenure,
       p_interval_months: selectedLoan.interval,
+      p_member_id: selectedLoan.member_id,
     });
 
     if (rpcError) {

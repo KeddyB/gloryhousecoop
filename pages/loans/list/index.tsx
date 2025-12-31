@@ -21,12 +21,15 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   Search,
   CheckCircle2,
   Clock,
   AlertCircle,
   CircleDollarSign,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -42,6 +45,8 @@ export default function LoanListPage() {
   const [monthFilter, setMonthFilter] = useState<string>("all");
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const LOANS_PER_PAGE = 10;
   const supabase = createClient();
 
   const fetchLoans = async () => {
@@ -77,6 +82,11 @@ export default function LoanListPage() {
     fetchLoans();
   }, []);
 
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, monthFilter]);
+
   const filteredLoans = useMemo(() => {
     return loans.filter((loan) => {
       // 1. Filter by status
@@ -103,6 +113,13 @@ export default function LoanListPage() {
       return true;
     });
   }, [loans, searchTerm, statusFilter, monthFilter]);
+
+  const paginatedLoans = useMemo(() => {
+    const startIndex = (currentPage - 1) * LOANS_PER_PAGE;
+    return filteredLoans.slice(startIndex, startIndex + LOANS_PER_PAGE);
+  }, [filteredLoans, currentPage]);
+
+  const totalPages = Math.ceil(filteredLoans.length / LOANS_PER_PAGE);
 
   const stats = useMemo(() => {
     const active = loans.filter((l) => l.state === "active").length;
@@ -298,7 +315,7 @@ export default function LoanListPage() {
                           </TableCell>
                         </TableRow>
                       ))
-                  ) : filteredLoans.length === 0 ? (
+                  ) : paginatedLoans.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} className="h-64 text-center">
                         <div className="flex flex-col items-center gap-4 text-[#ADB5BD]">
@@ -310,7 +327,7 @@ export default function LoanListPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredLoans.map((loan) => {
+                    paginatedLoans.map((loan) => {
                       const statusConfig = getStatusConfig(
                         loan.state,
                         loan.due_date
@@ -395,6 +412,73 @@ export default function LoanListPage() {
                 </TableBody>
               </Table>
             </CardContent>
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="px-8 py-5 border-t border-[#EEEEEE] flex items-center justify-between bg-white">
+                <p className="text-sm font-medium text-[#666666]">
+                  Showing{" "}
+                  <span className="text-[#1A1A1A] font-bold">
+                    {(currentPage - 1) * LOANS_PER_PAGE + 1}
+                  </span>{" "}
+                  to{" "}
+                  <span className="text-[#1A1A1A] font-bold">
+                    {Math.min(
+                      currentPage * LOANS_PER_PAGE,
+                      filteredLoans.length
+                    )}
+                  </span>{" "}
+                  of{" "}
+                  <span className="text-[#1A1A1A] font-bold">
+                    {filteredLoans.length}
+                  </span>{" "}
+                  results
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 w-9 p-0 rounded-lg border-[#EEEEEE] hover:bg-[#F8F9FA] disabled:opacity-50"
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.max(prev - 1, 1))
+                    }
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <div className="flex items-center gap-1.5 mx-2">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                      (page) => (
+                        <Button
+                          key={page}
+                          variant={currentPage === page ? "default" : "ghost"}
+                          size="sm"
+                          className={cn(
+                            "h-9 w-9 rounded-lg font-bold text-sm",
+                            currentPage === page
+                              ? "bg-black text-white hover:bg-black/90 shadow-none"
+                              : "text-[#666666] hover:bg-[#F4F4F4] hover:text-[#1A1A1A]"
+                          )}
+                          onClick={() => setCurrentPage(page)}
+                        >
+                          {page}
+                        </Button>
+                      )
+                    )}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 w-9 p-0 rounded-lg border-[#EEEEEE] hover:bg-[#F8F9FA] disabled:opacity-50"
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                    }
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </Card>
         </div>
       </div>
