@@ -37,7 +37,10 @@ import {
   AlertCircle,
   CheckCircle2,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
+import { AmountInput } from "@/components/ui/amount-input";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -52,6 +55,8 @@ export default function RepaymentPage() {
   const [summaries, setSummaries] = useState<LoanRepaymentSummary[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSummary, setSelectedSummary] =
@@ -104,10 +109,21 @@ export default function RepaymentPage() {
 
         const isOverdue =
           s.next_due && isBefore(new Date(s.next_due), startOfDay(new Date()));
-        if (statusFilter === "overdue") return matchesSearch && isOverdue;
-        if (statusFilter === "active") return matchesSearch && !isOverdue;
 
-        return matchesSearch;
+        if (!matchesSearch) return false;
+
+        switch (statusFilter) {
+          case "overdue":
+            return !!isOverdue;
+          case "pending":
+            return s.status === "pending" && !isOverdue;
+          case "partial":
+            return s.status === "partial" && !isOverdue;
+          case "paid":
+            return s.status === "paid";
+          default:
+            return true;
+        }
       })
       .sort((a, b) => {
         return (
@@ -116,6 +132,12 @@ export default function RepaymentPage() {
         );
       });
   }, [summaries, searchQuery, statusFilter]);
+
+  const totalPages = Math.ceil(filteredSummaries.length / itemsPerPage);
+  const paginatedSummaries = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredSummaries.slice(start, start + itemsPerPage);
+  }, [filteredSummaries, currentPage]);
 
   const stats = useMemo(() => {
     const totalOutstanding = summaries.reduce(
@@ -166,9 +188,8 @@ export default function RepaymentPage() {
     if (!selectedSummary || upcomingInstallments.length === 0) return;
 
     setIsSubmitting(true);
-    const installment = upcomingInstallments[0];
     const amount = parseFloat(paymentAmount);
-    const remaining = installment.amount_due - installment.amount_paid;
+    const totalRemaining = Number(selectedSummary.remaining);
 
     if (isNaN(amount) || amount <= 0) {
       toast({
@@ -180,23 +201,21 @@ export default function RepaymentPage() {
       return;
     }
 
-    if (amount > remaining) {
+    if (amount > totalRemaining) {
       toast({
         title: "Amount Exceeded",
-        description: `Payment cannot exceed the remaining balance of ₦${remaining.toLocaleString()}`,
+        description: `Payment cannot exceed the total remaining balance of ₦${totalRemaining.toLocaleString()}`,
         variant: "destructive",
       });
       setIsSubmitting(false);
       return;
     }
 
-    const { error } = await supabase
-      .from("repayments")
-      .update({
-        amount_paid: installment.amount_paid + amount,
-        notes: notes || installment.notes || "",
-      })
-      .eq("id", installment.id!);
+    const { error } = await supabase.rpc("record_repayment_redistributed", {
+      p_loan_id: selectedSummary.loan_id,
+      p_amount: amount,
+      p_notes: notes || "",
+    });
 
     if (error) {
       toast({
@@ -312,17 +331,28 @@ export default function RepaymentPage() {
                     placeholder="Search by applicant..."
                     className="pl-8 h-9 text-xs border-gray-100 bg-gray-50/50 rounded-lg focus:ring-0 focus:border-gray-200 transition-all"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setCurrentPage(1);
+                    }}
                   />
                 </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <Select
+                  value={statusFilter}
+                  onValueChange={(val) => {
+                    setStatusFilter(val);
+                    setCurrentPage(1);
+                  }}
+                >
                   <SelectTrigger className="w-30 h-9 text-xs border-gray-100 bg-gray-50/50 rounded-lg">
                     <SelectValue placeholder="All Status" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="partial">Partial</SelectItem>
                     <SelectItem value="overdue">Overdue</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -368,7 +398,7 @@ export default function RepaymentPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredSummaries.map((s) => {
+                    paginatedSummaries.map((s) => {
                       const isOverdue =
                         s.next_due &&
                         isBefore(new Date(s.next_due), startOfDay(new Date()));
@@ -477,8 +507,14 @@ export default function RepaymentPage() {
                           <TableCell className="text-right px-6">
                             <Button
                               size="sm"
-                              className="bg-black hover:bg-gray-800 text-[10px] h-8 px-4 font-bold rounded-lg gap-1.5 transition-all active:scale-95"
+                              className={cn(
+                                "text-[10px] h-8 px-4 font-bold rounded-lg gap-1.5 transition-all active:scale-95",
+                                s.status === "paid"
+                                  ? "bg-gray-100 text-gray-400 cursor-not-allowed hover:bg-gray-100"
+                                  : "bg-black hover:bg-gray-800 text-white"
+                              )}
                               onClick={() => handlePaymentClick(s)}
+                              disabled={s.status === "paid"}
                             >
                               <ArrowRight className="h-3 w-3" />
                               Payment
@@ -491,6 +527,60 @@ export default function RepaymentPage() {
                 </TableBody>
               </Table>
             </CardContent>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/30">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                  Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
+                  {Math.min(
+                    currentPage * itemsPerPage,
+                    filteredSummaries.length
+                  )}{" "}
+                  of {filteredSummaries.length} entries
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0 rounded-lg border-gray-200 hover:bg-white active:scale-95 transition-all disabled:opacity-50"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                      (page) => (
+                        <Button
+                          key={page}
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          className={cn(
+                            "h-8 w-8 p-0 rounded-lg text-[10px] font-bold transition-all active:scale-95",
+                            currentPage === page
+                              ? "bg-black text-white hover:bg-black"
+                              : "border-gray-200 hover:bg-white text-gray-600"
+                          )}
+                          onClick={() => setCurrentPage(page)}
+                        >
+                          {page}
+                        </Button>
+                      )
+                    )}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0 rounded-lg border-gray-200 hover:bg-white active:scale-95 transition-all disabled:opacity-50"
+                    onClick={() =>
+                      setCurrentPage((p) => Math.min(totalPages, p + 1))
+                    }
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </Card>
         </div>
       </div>
@@ -600,21 +690,21 @@ export default function RepaymentPage() {
                           Payment Amount
                         </label>
                         <div className="relative">
-                          <Input
-                            type="number"
+                          <AmountInput
                             value={paymentAmount}
-                            onChange={(e) => {
-                              const val = e.target.value;
+                            onValueChange={(val) => {
                               setPaymentAmount(val);
-                              if (upcomingInstallments[0]) {
-                                const remaining =
-                                  upcomingInstallments[0].amount_due -
-                                  upcomingInstallments[0].amount_paid;
-                                setIsAmountInvalid(parseFloat(val) > remaining);
+                              if (selectedSummary) {
+                                const totalRemaining = Number(
+                                  selectedSummary.remaining
+                                );
+                                setIsAmountInvalid(
+                                  parseFloat(val) > totalRemaining
+                                );
                               }
                             }}
                             className={cn(
-                              "bg-[#F4F4F4] border-none text-[15px] font-medium rounded-xl focus:ring-1 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                              "bg-[#F4F4F4] border-none text-[15px] font-medium rounded-xl h-14 focus:ring-1 transition-all",
                               isAmountInvalid
                                 ? "ring-2 ring-red-500 bg-red-50 text-red-900"
                                 : "ring-gray-200"
