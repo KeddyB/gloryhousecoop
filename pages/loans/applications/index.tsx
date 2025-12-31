@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { AmountInput } from "@/components/ui/amount-input";
 import { Member } from "@/pages/members/types";
 
 const steps = [
@@ -563,11 +564,11 @@ function LoanApplicationForm() {
                       <label className="text-sm font-medium">
                         Loan Amount *
                       </label>
-                      <Input
-                        name="loanAmount"
-                        type="number"
+                      <AmountInput
                         value={formData.loanAmount}
-                        onChange={handleChange}
+                        onValueChange={(val) =>
+                          handleSelectChange("loanAmount", val)
+                        }
                         placeholder="Enter Loan Amount"
                         className="bg-gray-50 border-none h-12"
                       />
@@ -603,11 +604,11 @@ function LoanApplicationForm() {
                       <label className="text-sm font-medium">
                         Collateral Value *
                       </label>
-                      <Input
-                        name="collateralValue"
-                        type="number"
+                      <AmountInput
                         value={formData.collateralValue}
-                        onChange={handleChange}
+                        onValueChange={(val) =>
+                          handleSelectChange("collateralValue", val)
+                        }
                         placeholder="Enter estimated value"
                         className="bg-gray-50 border-none h-12"
                       />

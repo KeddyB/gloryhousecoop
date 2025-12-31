@@ -36,6 +36,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { AmountInput } from "@/components/ui/amount-input";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -564,13 +565,11 @@ export default function DisbursementPage() {
                         Disbursement Amount
                       </label>
                       <div className="relative">
-                        <Input
+                        <AmountInput
                           value={disbursementAmount}
                           readOnly
-                          onChange={(e) =>
-                            setDisbursementAmount(e.target.value)
-                          }
-                          className="bg-[#F4F4F4] border-none text-[15px] font-medium rounded-xl focus-visible:ring-1 ring-gray-200"
+                          onValueChange={(val) => setDisbursementAmount(val)}
+                          className="bg-[#F4F4F4] border-none text-[15px] p-4 h-14 font-medium rounded-xl focus-visible:ring-1 ring-gray-200"
                           placeholder="N0.00"
                         />
                       </div>

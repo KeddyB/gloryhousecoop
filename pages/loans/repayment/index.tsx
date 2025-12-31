@@ -40,6 +40,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { AmountInput } from "@/components/ui/amount-input";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -506,8 +507,14 @@ export default function RepaymentPage() {
                           <TableCell className="text-right px-6">
                             <Button
                               size="sm"
-                              className="bg-black hover:bg-gray-800 text-[10px] h-8 px-4 font-bold rounded-lg gap-1.5 transition-all active:scale-95"
+                              className={cn(
+                                "text-[10px] h-8 px-4 font-bold rounded-lg gap-1.5 transition-all active:scale-95",
+                                s.status === "paid"
+                                  ? "bg-gray-100 text-gray-400 cursor-not-allowed hover:bg-gray-100"
+                                  : "bg-black hover:bg-gray-800 text-white"
+                              )}
                               onClick={() => handlePaymentClick(s)}
+                              disabled={s.status === "paid"}
                             >
                               <ArrowRight className="h-3 w-3" />
                               Payment
@@ -683,11 +690,9 @@ export default function RepaymentPage() {
                           Payment Amount
                         </label>
                         <div className="relative">
-                          <Input
-                            type="number"
+                          <AmountInput
                             value={paymentAmount}
-                            onChange={(e) => {
-                              const val = e.target.value;
+                            onValueChange={(val) => {
                               setPaymentAmount(val);
                               if (selectedSummary) {
                                 const totalRemaining = Number(
@@ -699,7 +704,7 @@ export default function RepaymentPage() {
                               }
                             }}
                             className={cn(
-                              "bg-[#F4F4F4] border-none text-[15px] font-medium rounded-xl focus:ring-1 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                              "bg-[#F4F4F4] border-none text-[15px] font-medium rounded-xl h-14 focus:ring-1 transition-all",
                               isAmountInvalid
                                 ? "ring-2 ring-red-500 bg-red-50 text-red-900"
                                 : "ring-gray-200"
