@@ -210,7 +210,7 @@ function LoanApplicationForm() {
       toast.success(
         `${
           type === "collateral" ? "Collateral document" : "Loan agreement"
-        } uploaded successfuly`
+        } uploaded successfully`
       );
     }
     setIsUploading((prev) => ({ ...prev, [type]: false }));
