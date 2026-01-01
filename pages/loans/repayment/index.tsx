@@ -43,13 +43,12 @@ import {
 import { AmountInput } from "@/components/ui/amount-input";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
 import { format, isBefore, startOfDay } from "date-fns";
+import { toast } from "sonner";
 import { LoanRepaymentSummary, Repayment } from "../types";
 
 export default function RepaymentPage() {
   const supabase = useMemo(() => createClient(), []);
-  const { toast } = useToast();
 
   const [isLoading, setIsLoading] = useState(true);
   const [summaries, setSummaries] = useState<LoanRepaymentSummary[]>([]);
@@ -78,11 +77,7 @@ export default function RepaymentPage() {
     const { data, error } = await supabase.rpc("get_loan_repayment_summaries");
 
     if (error) {
-      toast({
-        title: "Error fetching repayments",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(`Error fetching repayments: ${error.message}`);
     } else {
       console.log("summaries>>>>>>", data);
       setSummaries(data || []);
@@ -196,21 +191,15 @@ export default function RepaymentPage() {
     const totalRemaining = Number(selectedSummary.remaining);
 
     if (isNaN(amount) || amount <= 0) {
-      toast({
-        title: "Invalid Amount",
-        description: "Please enter a valid payment amount",
-        variant: "destructive",
-      });
+      toast.error("Please enter a valid payment amount");
       setIsSubmitting(false);
       return;
     }
 
     if (amount > totalRemaining) {
-      toast({
-        title: "Amount Exceeded",
-        description: `Payment cannot exceed the total remaining balance of ₦${totalRemaining.toLocaleString()}`,
-        variant: "destructive",
-      });
+      toast.error(
+        `Payment cannot exceed the total remaining balance of ₦${totalRemaining.toLocaleString()}`
+      );
       setIsSubmitting(false);
       return;
     }
@@ -222,16 +211,9 @@ export default function RepaymentPage() {
     });
 
     if (error) {
-      toast({
-        title: "Payment Recording Failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(`Payment Recording Failed: ${error.message}`);
     } else {
-      toast({
-        title: "Success",
-        description: "Payment recorded successfully",
-      });
+      toast.success("Payment recorded successfully");
       setIsModalOpen(false);
       setNotes("");
       setIsAmountInvalid(false);

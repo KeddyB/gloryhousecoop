@@ -39,7 +39,7 @@ import {
 import { AmountInput } from "@/components/ui/amount-input";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { format } from "date-fns";
 import { Loan, Disbursement } from "../types";
 
@@ -47,7 +47,6 @@ const HISTORY_PER_PAGE = 5;
 
 export default function DisbursementPage() {
   const supabase = createClient();
-  const { toast } = useToast();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
@@ -75,11 +74,7 @@ export default function DisbursementPage() {
       .order("created_at", { ascending: false });
 
     if (error) {
-      toast({
-        title: "Error fetching loans",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(`Error fetching loans: ${error.message}`);
     } else {
       console.log("pending loans>>>>>>>>>>>>>>", data);
       setPendingLoans(data || []);
@@ -131,11 +126,7 @@ export default function DisbursementPage() {
 
   const handleConfirmDisbursement = async () => {
     if (!disbursementMethod) {
-      toast({
-        title: "Validation Error",
-        description: "Please select a disbursement method",
-        variant: "destructive",
-      });
+      toast.error("Please select a disbursement method");
       return;
     }
 
@@ -146,21 +137,15 @@ export default function DisbursementPage() {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      toast({
-        title: "Authentication Error",
-        description: "You must be logged in to perform this action",
-        variant: "destructive",
-      });
+      toast.error(
+        "Authentication Error: You must be logged in to perform this action"
+      );
       setIsSubmitting(false);
       return;
     }
 
     if (!selectedLoan || !selectedLoan.id) {
-      toast({
-        title: "Selection Error",
-        description: "No loan selected for disbursement",
-        variant: "destructive",
-      });
+      toast.error("Selection Error: No loan selected for disbursement");
       setIsSubmitting(false);
       return;
     }
@@ -188,13 +173,9 @@ export default function DisbursementPage() {
 
     if (rpcError) {
       console.log(rpcError);
-      toast({
-        title: "Disbursement Failed",
-        description: rpcError.message,
-        variant: "destructive",
-      });
+      toast.error(`Disbursement Failed: ${rpcError.message}`);
     } else {
-      toast({ title: "Success", description: "Loan disbursed successfully" });
+      toast.success("Loan disbursed successfully");
       setIsModalOpen(false);
       fetchPendingLoans();
       fetchHistory();

@@ -1,9 +1,10 @@
-import type { AppProps } from 'next/app'
-import { Geist, Geist_Mono } from "next/font/google"
-import '../styles/globals.css'
+import type { AppProps } from "next/app";
+import { Geist, Geist_Mono } from "next/font/google";
+import { Toaster } from "sonner";
+import "../styles/globals.css";
 
-const geist = Geist({ subsets: ["latin"] })
-const geistMono = Geist_Mono({ subsets: ["latin"] })
+const geist = Geist({ subsets: ["latin"] });
+const geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
@@ -16,7 +17,8 @@ export default function App({ Component, pageProps }: AppProps) {
       `}</style>
       <main className={`font-sans antialiased ${geist.className}`}>
         <Component {...pageProps} />
+        <Toaster richColors position="bottom-right" />
       </main>
     </>
-  )
+  );
 }
