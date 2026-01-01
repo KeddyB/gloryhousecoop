@@ -47,6 +47,13 @@ import { createClient } from "@/utils/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EditProfileDialog } from "@/components/edit-profile-dialog";
 import { Member } from "./types";
+import {
+  format,
+  startOfMonth,
+  addMonths,
+  isBefore,
+  isSameMonth,
+} from "date-fns";
 
 export default function MemberProfile() {
   const router = useRouter();
@@ -73,13 +80,192 @@ export default function MemberProfile() {
       }
     } catch (error) {
       console.error("Unexpected error:", error);
-    } finally {
-      setLoading(false);
+    }
+  }
+
+  const [totalInterestPaid, setTotalInterestPaid] = useState<number>(0);
+  const [pendingInterest, setPendingInterest] = useState<number>(0);
+  const [missedRepayment, setMissedRepayment] = useState<number>(0);
+  const [activeLoan, setActiveLoan] = useState<number>(0);
+  const [activeLoans, setActiveLoans] = useState<any[]>([]);
+  const [currentBalance, setCurrentBalance] = useState<number>(0);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+
+  async function fetchMemberData() {
+    if (!id) return;
+
+    try {
+      // Fetch Active Loans (plural)
+      const { data: loansData, error: loansError } = await supabase
+        .from("loans")
+        .select("*, disbursements(created_at), interest_payments(payment_for_month, amount_paid), repayments(amount_paid)")
+        .eq("member_id", id)
+        .or("state.eq.active,state.eq.disbursed");
+
+      if (loansError) {
+         console.error("Error fetching loans data:", loansError);
+      } else if (loansData) {
+        setActiveLoans(loansData);
+        // Calculate totals for Active Loans
+        const totalActiveLoanAmount = loansData.reduce((sum, loan) => sum + (loan.loan_amount ?? loan.amount ?? 0), 0);
+        
+        // Calculate total repayments made towards active loans
+        const totalRepaid = loansData.reduce((sum, loan) => {
+            const loanRepaid = loan.repayments ? loan.repayments.reduce((rSum: number, r: any) => rSum + (r.amount_paid ?? 0), 0) : 0;
+            return sum + loanRepaid;
+        }, 0);
+
+        const balance = totalActiveLoanAmount - totalRepaid;
+        
+        setActiveLoan(totalActiveLoanAmount);
+        setCurrentBalance(balance > 0 ? balance : 0);
+
+        // Calculate Pending Interest and Missed Installments for ALL active loans
+        let totalPending = 0;
+        let totalMissedRepayment = 0;
+
+        loansData.forEach(loan => {
+            const disbursedDate = loan.disbursements?.[0]?.created_at || loan.created_at;
+            
+            if (disbursedDate) {
+                const loanAmount = loan.loan_amount ?? loan.amount ?? 0;
+                const startDue = addMonths(new Date(disbursedDate), 1);
+                const tenure = loan.tenure;
+                const loanEndDate = addMonths(startDue, tenure);
+                const monthlyInterest = (loanAmount * loan.interest_rate) / 100;
+                const monthlyPrincipal = tenure > 0 ? loanAmount / tenure : 0;
+                
+                // Interest Calculation
+                const now = new Date();
+                const currentMonthStart = startOfMonth(now);
+                
+                let limitDate = addMonths(currentMonthStart, 1);
+                if (isBefore(loanEndDate, limitDate)) {
+                    limitDate = loanEndDate;
+                }
+
+                let iterDate = startOfMonth(startDue);
+                while (isBefore(iterDate, limitDate)) {
+                     const isPaid = loan.interest_payments?.some((p: any) => 
+                         isSameMonth(new Date(p.payment_for_month), iterDate)
+                     );
+                     
+                     if (!isPaid) {
+                         totalPending += monthlyInterest;
+                     }
+                     iterDate = addMonths(iterDate, 1);
+                }
+
+                // Principal Installment Calculation
+                // Check how many installments are due based on time
+                let dueInstallments = 0;
+                let d = new Date(startDue);
+                let monthsChecked = 0;
+                
+                while (isBefore(d, now) && monthsChecked < tenure) {
+                     dueInstallments++;
+                     d = addMonths(d, 1);
+                     monthsChecked++;
+                }
+                
+                const expectedRepaid = dueInstallments * monthlyPrincipal;
+                const loanRepaid = loan.repayments ? loan.repayments.reduce((rSum: number, r: any) => rSum + (r.amount_paid ?? 0), 0) : 0;
+
+                if (loanRepaid < expectedRepaid) {
+                    // Use a small tolerance for floating point comparison
+                    if (expectedRepaid - loanRepaid > 1) {
+                         totalMissedRepayment += (expectedRepaid - loanRepaid);
+                    }
+                }
+            }
+        });
+        setPendingInterest(totalPending);
+        setMissedRepayment(totalMissedRepayment);
+      }
+
+      // Fetch All Loans with all related transactions for Recent Activity and Total Interest
+      const { data: allLoansData, error: allLoansError } = await supabase
+        .from("loans")
+        .select(`
+            id,
+            interest_payments(id, amount_paid, payment_date, created_at),
+            repayments(id, amount_paid, paid_at, created_at),
+            disbursements(id, disbursement_amount, created_at)
+        `)
+        .eq("member_id", id);
+
+      if (allLoansError) {
+         console.error("Error fetching all loans data:", allLoansError);
+      } else if (allLoansData) {
+         // 1. Calculate Total Interest Paid
+         const totalPaid = allLoansData.reduce((sum, loan: any) => {
+             const loanTotal = loan.interest_payments ? loan.interest_payments.reduce((lSum: number, p: any) => lSum + p.amount_paid, 0) : 0;
+             return sum + loanTotal;
+         }, 0);
+         setTotalInterestPaid(totalPaid);
+
+         // 2. Build Recent Activity
+         let activities: any[] = [];
+         
+         allLoansData.forEach((loan: any) => {
+             // Interest
+             if (loan.interest_payments) {
+                 loan.interest_payments.forEach((p: any) => {
+                     activities.push({
+                         id: `int-${p.id}`,
+                         title: "Interest Payment",
+                         date: p.payment_date || p.created_at,
+                         amount: p.amount_paid,
+                         type: "success" // Money IN
+                     });
+                 });
+             }
+             // Repayments
+             if (loan.repayments) {
+                 loan.repayments.forEach((r: any) => {
+                     activities.push({
+                         id: `rep-${r.id}`,
+                         title: "Loan Repayment",
+                         date: r.paid_at || r.created_at,
+                         amount: r.amount_paid,
+                         type: "success" // Money IN
+                     });
+                 });
+             }
+             // Disbursements
+             if (loan.disbursements) {
+                 loan.disbursements.forEach((d: any) => {
+                     activities.push({
+                         id: `dis-${d.id}`,
+                         title: "Loan Disbursement",
+                         date: d.created_at,
+                         amount: d.disbursement_amount,
+                         type: "danger" // Money OUT
+                     });
+                 });
+             }
+         });
+         
+         // Sort by date desc
+         activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+         
+         // Take top 4
+         setRecentActivity(activities.slice(0, 4));
+      }
+
+    } catch (error) {
+      console.error("Unexpected error:", error);
     }
   }
 
   useEffect(() => {
-    fetchMember();
+    const loadData = async () => {
+      await Promise.all([fetchMember(), fetchMemberData()]);
+      setLoading(false);
+    };
+    if (id) {
+      loadData();
+    }
   }, [id]);
 
   if (loading) {
@@ -264,7 +450,7 @@ export default function MemberProfile() {
                   <p className="text-xs text-muted-foreground">
                     Total Interest Paid
                   </p>
-                  <p className="text-xl font-bold">N200,000</p>
+                  <p className="text-xl font-bold">N{totalInterestPaid}</p>
                 </div>
               </CardContent>
             </Card>
@@ -277,7 +463,7 @@ export default function MemberProfile() {
                   <p className="text-xs text-muted-foreground">
                     Pending Interest
                   </p>
-                  <p className="text-xl font-bold">N30,000</p>
+                  <p className="text-xl font-bold">N{pendingInterest}</p>
                 </div>
               </CardContent>
             </Card>
@@ -288,7 +474,7 @@ export default function MemberProfile() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Active Loan</p>
-                  <p className="text-xl font-bold">N500,000</p>
+                  <p className="text-xl font-bold">N{activeLoan}</p>
                 </div>
               </CardContent>
             </Card>
@@ -301,7 +487,7 @@ export default function MemberProfile() {
                   <p className="text-xs text-muted-foreground">
                     Current Balance
                   </p>
-                  <p className="text-xl font-bold">N300,000</p>
+                  <p className="text-xl font-bold">N{currentBalance}</p>
                 </div>
               </CardContent>
             </Card>
@@ -344,64 +530,45 @@ export default function MemberProfile() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-6">
-                      {[
-                        {
-                          title: "Interest Payment",
-                          date: "01-05-2024",
-                          amount: "+N30,000",
-                          type: "success",
-                        },
-                        {
-                          title: "Interest Payment",
-                          date: "01-04-2024",
-                          amount: "N30,000",
-                          type: "danger",
-                        },
-                        {
-                          title: "Loan Repayment",
-                          date: "26-03-2024",
-                          amount: "+N200,000",
-                          type: "success",
-                        },
-                        {
-                          title: "Interest Payment",
-                          date: "24-03-2024",
-                          amount: "+N50,000",
-                          type: "success",
-                        },
-                      ].map((item, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between"
-                        >
-                          <div className="flex items-start gap-3">
-                            <div
-                              className={`mt-1.5 h-2 w-2 rounded-full ${
-                                item.type === "success"
-                                  ? "bg-green-500"
-                                  : "bg-red-500"
-                              }`}
-                            />
-                            <div>
-                              <p className="font-medium text-sm">
-                                {item.title}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {item.date}
-                              </p>
-                            </div>
-                          </div>
-                          <span
-                            className={`text-sm font-medium ${
-                              item.type === "success"
-                                ? "text-green-600"
-                                : "text-red-600"
-                            }`}
+                      {recentActivity.length > 0 ? (
+                        recentActivity.map((item) => (
+                          <div
+                            key={item.id}
+                            className="flex items-center justify-between"
                           >
-                            {item.amount}
-                          </span>
-                        </div>
-                      ))}
+                            <div className="flex items-start gap-3">
+                              <div
+                                className={`mt-1.5 h-2 w-2 rounded-full ${
+                                  item.type === "success"
+                                    ? "bg-green-500"
+                                    : "bg-red-500"
+                                }`}
+                              />
+                              <div>
+                                <p className="font-medium text-sm">
+                                  {item.title}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {format(new Date(item.date), "dd-MM-yyyy")}
+                                </p>
+                              </div>
+                            </div>
+                            <span
+                              className={`text-sm font-medium ${
+                                item.type === "success"
+                                  ? "text-green-600"
+                                  : "text-red-600"
+                              }`}
+                            >
+                              {item.type === "success" ? "+" : "-"}N{item.amount.toLocaleString()}
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          No recent activity found.
+                        </p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -414,40 +581,76 @@ export default function MemberProfile() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Paid: N200,000</span>
-                        <span>Remaining: N300,000</span>
-                      </div>
-                      <Progress value={40} className="h-2 bg-gray-100" />
-                    </div>
+                    {activeLoans.length > 0 ? (
+                      activeLoans.map((loan, i) => {
+                         const loanAmount = loan.loan_amount ?? loan.amount ?? 0;
+                         const loanRepaid = loan.repayments ? loan.repayments.reduce((acc: number, curr: any) => acc + (curr.amount_paid ?? 0), 0) : 0;
+                         const remaining = Math.max(0, loanAmount - loanRepaid);
+                         const progress = loanAmount > 0 ? (loanRepaid / loanAmount) * 100 : 0;
+                         
+                         const disbursedDate = loan.disbursements?.[0]?.created_at || loan.created_at;
+                         const startDue = disbursedDate ? addMonths(new Date(disbursedDate), 1) : new Date();
+                         const tenure = loan.tenure || 0;
+                         
+                         let nextDueDate = new Date(startDue);
+                         const now = new Date();
+                         let monthsCount = 0;
+                         
+                         while(isBefore(nextDueDate, now) && monthsCount < tenure) {
+                            nextDueDate = addMonths(nextDueDate, 1);
+                            monthsCount++;
+                         }
+                         
+                         const monthlyPrincipal = tenure > 0 ? loanAmount / tenure : 0;
 
-                    <div className="grid grid-cols-2 gap-y-6 gap-x-4">
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">
-                          Loan Disbursement Date
-                        </p>
-                        <p className="font-medium text-sm">16-12-2023</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">
-                          Next Due Date
-                        </p>
-                        <p className="font-medium text-sm">02-06-2025</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">
-                          Monthly Payment
-                        </p>
-                        <p className="font-medium text-sm">N30,000</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">
-                          Interest Rate
-                        </p>
-                        <p className="font-medium text-sm">10%</p>
-                      </div>
-                    </div>
+                         return (
+                            <div key={loan.id} className={i > 0 ? "pt-6 border-t" : ""}>
+                                <div className="space-y-2 mb-6">
+                                  <div className="flex justify-between text-xs text-muted-foreground">
+                                    <span>Loan #{loan.id.substring(0, 6)}...</span>
+                                    <span>Tenure: {tenure} months</span>
+                                  </div>
+                                  <div className="flex justify-between text-xs text-muted-foreground">
+                                    <span>Paid: N{loanRepaid.toLocaleString()}</span>
+                                    <span>Remaining: N{remaining.toLocaleString()}</span>
+                                  </div>
+                                  <Progress value={progress} className="h-2 bg-gray-100" />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-y-6 gap-x-4">
+                                  <div>
+                                    <p className="text-xs text-muted-foreground mb-1">
+                                      Loan Disbursement Date
+                                    </p>
+                                    <p className="font-medium text-sm">{disbursedDate ? format(new Date(disbursedDate), "dd-MM-yyyy") : "N/A"}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-muted-foreground mb-1">
+                                      Next Due Date
+                                    </p>
+                                    <p className="font-medium text-sm">{format(nextDueDate, "dd-MM-yyyy")}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-muted-foreground mb-1">
+                                      Monthly Payment (Principal)
+                                    </p>
+                                    <p className="font-medium text-sm">N{Math.ceil(monthlyPrincipal).toLocaleString()}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-muted-foreground mb-1">
+                                      Interest Rate
+                                    </p>
+                                    <p className="font-medium text-sm">{loan.interest_rate}%</p>
+                                  </div>
+                                </div>
+                            </div>
+                         );
+                      })
+                    ) : (
+                        <div className="text-center text-sm text-muted-foreground py-4">
+                            No active loans found.
+                        </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -463,7 +666,7 @@ export default function MemberProfile() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
-                      <div>
+                      <div className="col-span-2 md:col-span-1">
                         <p className="text-xs text-muted-foreground">
                           Full Name
                         </p>
@@ -487,6 +690,14 @@ export default function MemberProfile() {
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">
+                          Email
+                        </p>
+                        <p className="text-sm font-medium truncate" title={member.email || ""}>
+                          {member.email || "N/A"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">
                           Join Date
                         </p>
                         <p className="text-sm font-medium">
@@ -501,6 +712,14 @@ export default function MemberProfile() {
                           {member.status || "Active"}
                         </p>
                       </div>
+                      <div className="col-span-2">
+                        <p className="text-xs text-muted-foreground">
+                          Address
+                        </p>
+                        <p className="text-sm font-medium">
+                          {member.location || "N/A"}
+                        </p>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -513,58 +732,55 @@ export default function MemberProfile() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
-                      <div>
+                      <div className="col-span-2">
                         <p className="text-xs text-muted-foreground">
                           Nominee Name
                         </p>
-                        <p className="text-sm font-medium">Fatima Rahman</p>
+                        <p className="text-sm font-medium">{member.nominee_name || "N/A"}</p>
                       </div>
-                      <div>
+                      <div className="col-span-2">
                         <p className="text-xs text-muted-foreground">
                           Phone Number
                         </p>
-                        <p className="text-sm font-medium">+234 70-352-6372</p>
+                        <p className="text-sm font-medium">{member.nominee_phone || "N/A"}</p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <User className="h-4 w-4" /> Third Party Borrower
-                      Information
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-xs text-muted-foreground">
-                          Full Name
-                        </p>
-                        <p className="text-sm font-medium">Kareem Yusuf</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">
-                          Phone Number
-                        </p>
-                        <p className="text-sm font-medium">+234 70-352-6372</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">
-                          Account Number
-                        </p>
-                        <p className="text-sm font-medium">1987362781291</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">
-                          Bank Name
-                        </p>
-                        <p className="text-sm font-medium">First Bank</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                {activeLoans.some((l: any) => l.third_party_name) && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <User className="h-4 w-4" /> Third Party Borrower Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {activeLoans
+                        .filter((l: any) => l.third_party_name)
+                        .map((loan: any, index: number) => (
+                          <div key={loan.id} className={index > 0 ? "pt-4 border-t" : ""}>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <p className="text-xs text-muted-foreground">
+                                  Full Name
+                                </p>
+                                <p className="text-sm font-medium">{loan.third_party_name}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">
+                                  Phone Number
+                                </p>
+                                <p className="text-sm font-medium">
+                                  {loan.third_party_number || "N/A"}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </CardContent>
+                  </Card>
+                )}
 
                 <Card>
                   <CardHeader>
@@ -578,13 +794,13 @@ export default function MemberProfile() {
                         <p className="text-xs text-muted-foreground">
                           Account Number
                         </p>
-                        <p className="text-sm font-medium">9826721829</p>
+                        <p className="text-sm font-medium">{member.account_number || "N/A"}</p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">
                           Bank Name
                         </p>
-                        <p className="text-sm font-medium">Sterling Bank</p>
+                        <p className="text-sm font-medium">{member.bank_name || "N/A"}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -901,13 +1117,19 @@ export default function MemberProfile() {
           </Tabs>
 
           {/* Footer Warning */}
+          {(pendingInterest > 0 || missedRepayment > 100) && (
           <div className="flex items-center gap-2 p-4 bg-orange-50 border border-orange-100 rounded-lg text-orange-600 text-sm">
             <AlertCircle className="h-4 w-4" />
             <span>
-              This member has one pending fee payment, please follow up for
-              collection
+              {pendingInterest > 0 && missedRepayment > 100 
+                  ? `This member has pending interest fees (₦${pendingInterest.toLocaleString()}) and missed loan installments (₦${missedRepayment.toLocaleString()}). Please follow up.`
+                  : pendingInterest > 0 
+                      ? `This member has pending interest fee payment(s) of ₦${pendingInterest.toLocaleString()}. Please follow up.`
+                      : `This member has missed loan installment(s) of ₦${missedRepayment.toLocaleString()}. Please follow up.`
+              }
             </span>
           </div>
+          )}
         </div>
 
         {/* Edit Profile Dialog */}
