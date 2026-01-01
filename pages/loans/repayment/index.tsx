@@ -160,6 +160,10 @@ export default function RepaymentPage() {
   const handlePaymentClick = async (summary: LoanRepaymentSummary) => {
     setSelectedSummary(summary);
     setPaymentAmount(summary.interval_amount.toString());
+    setNotes("");
+    setIsAmountInvalid(false);
+    setPaymentMethod("Bank Transfer");
+    setUpcomingInstallments([]);
     setIsModalOpen(true);
     setIsFetchingInstallments(true);
 
@@ -229,6 +233,9 @@ export default function RepaymentPage() {
         description: "Payment recorded successfully",
       });
       setIsModalOpen(false);
+      setNotes("");
+      setIsAmountInvalid(false);
+      setPaymentMethod("Bank Transfer");
       fetchSummaries();
     }
     setIsSubmitting(false);
@@ -585,7 +592,17 @@ export default function RepaymentPage() {
         </div>
       </div>
 
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      <Dialog
+        open={isModalOpen}
+        onOpenChange={(open) => {
+          setIsModalOpen(open);
+          if (!open) {
+            setNotes("");
+            setIsAmountInvalid(false);
+            setPaymentMethod("Bank Transfer");
+          }
+        }}
+      >
         <DialogContent
           className={cn(
             "sm:max-w-xl p-0 overflow-hidden border-none shadow-2xl rounded-4xl bg-white font-sans",
@@ -704,7 +721,7 @@ export default function RepaymentPage() {
                               }
                             }}
                             className={cn(
-                              "bg-[#F4F4F4] border-none text-[15px] font-medium rounded-xl h-14 focus:ring-1 transition-all",
+                              "bg-[#F4F4F4] border-none text-[15px] font-medium rounded-xl focus:ring-1 transition-all",
                               isAmountInvalid
                                 ? "ring-2 ring-red-500 bg-red-50 text-red-900"
                                 : "ring-gray-200"
