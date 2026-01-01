@@ -35,7 +35,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { AmountInput } from "@/components/ui/amount-input";
 import { Member } from "@/pages/members/types";
 
@@ -60,7 +60,6 @@ export default function ApplicationsPage() {
 function LoanApplicationForm() {
   const router = useRouter();
   const supabase = createClient();
-  const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [members, setMembers] = useState<Member[]>([]);
@@ -181,11 +180,9 @@ function LoanApplicationForm() {
       "image/png",
     ];
     if (!allowedTypes.includes(file.type)) {
-      toast({
-        title: "Invalid file type",
-        description: "Please upload only PDF, DOC, DOCX, or Image files.",
-        variant: "destructive",
-      });
+      toast.error(
+        "Invalid file type: Please upload only PDF, DOC, DOCX, or Image files."
+      );
       return;
     }
 
@@ -201,11 +198,7 @@ function LoanApplicationForm() {
       .upload(fileName, file);
 
     if (error) {
-      toast({
-        title: "Upload failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(`Upload failed: ${error.message}`);
     } else if (data) {
       const {
         data: { publicUrl },
@@ -214,12 +207,11 @@ function LoanApplicationForm() {
       const stateKey =
         type === "collateral" ? "collateralDocsUrl" : "loanAgreementUrl";
       setFormData((prev) => ({ ...prev, [stateKey]: publicUrl }));
-      toast({
-        title: "Upload successful",
-        description: `${
+      toast.success(
+        `${
           type === "collateral" ? "Collateral document" : "Loan agreement"
-        } uploaded.`,
-      });
+        } uploaded successfully`
+      );
     }
     setIsUploading((prev) => ({ ...prev, [type]: false }));
   };
@@ -228,11 +220,7 @@ function LoanApplicationForm() {
     switch (currentStep) {
       case 1:
         if (!selectedMember) {
-          toast({
-            title: "Validation Error",
-            description: "Please select a member to proceed.",
-            variant: "destructive",
-          });
+          toast.error("Please select a member to proceed.");
           return false;
         }
         break;
@@ -246,11 +234,7 @@ function LoanApplicationForm() {
           !formData.purpose ||
           !formData.paymentInterval
         ) {
-          toast({
-            title: "Validation Error",
-            description: "Please fill in all required loan details.",
-            variant: "destructive",
-          });
+          toast.error("Please fill in all required loan details.");
           return false;
         }
 
@@ -258,32 +242,20 @@ function LoanApplicationForm() {
         const interval = Number(formData.paymentInterval);
 
         if (interval > tenure) {
-          toast({
-            title: "Validation Error",
-            description:
-              "Repayment interval cannot be greater than loan tenure.",
-            variant: "destructive",
-          });
+          toast.error("Repayment interval cannot be greater than loan tenure.");
           return false;
         }
 
         if (tenure % interval !== 0) {
-          toast({
-            title: "Validation Error",
-            description:
-              "Loan tenure must be a multiple of the repayment interval.",
-            variant: "destructive",
-          });
+          toast.error(
+            "Loan tenure must be a multiple of the repayment interval."
+          );
           return false;
         }
         break;
       case 3:
         if (!formData.thirdPartyName || !formData.thirdPartyPhone) {
-          toast({
-            title: "Validation Error",
-            description: "Please fill in all third party details.",
-            variant: "destructive",
-          });
+          toast.error("Please fill in all third party details.");
           return false;
         }
         break;
@@ -328,17 +300,10 @@ function LoanApplicationForm() {
     ]);
 
     if (error) {
-      toast({
-        title: "Submission failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(`Submission failed: ${error.message}`);
       setIsSubmitting(false);
     } else {
-      toast({
-        title: "Success",
-        description: "Loan application submitted successfully!",
-      });
+      toast.success("Loan application submitted successfully!");
       router.push("/loans/list");
     }
   };

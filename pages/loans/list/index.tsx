@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Sidebar } from "@/components/sidebar";
 import { Input } from "@/components/ui/input";
 import {
@@ -33,13 +33,12 @@ import {
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { Loan, LoanState } from "../types";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
 export default function LoanListPage() {
-  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [monthFilter, setMonthFilter] = useState<string>("all");
@@ -49,7 +48,7 @@ export default function LoanListPage() {
   const LOANS_PER_PAGE = 10;
   const supabase = createClient();
 
-  const fetchLoans = async () => {
+  const fetchLoans = useCallback(async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -63,11 +62,7 @@ export default function LoanListPage() {
         .order("created_at", { ascending: false });
 
       if (error) {
-        toast({
-          title: "Error fetching loans",
-          description: error.message,
-          variant: "destructive",
-        });
+        toast.error(`Error fetching loans: ${error.message}`);
       } else {
         setLoans(data || []);
       }
@@ -76,11 +71,11 @@ export default function LoanListPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [supabase]);
 
   useEffect(() => {
     fetchLoans();
-  }, []);
+  }, [fetchLoans]);
 
   // Reset to first page when filters change
   useEffect(() => {

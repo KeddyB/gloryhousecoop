@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/router";
 import { Sidebar } from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -51,7 +52,6 @@ function AddMemberForm() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [formError, setFormError] = useState<string | null>(null);
-  const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     full_name: "",
@@ -100,7 +100,6 @@ function AddMemberForm() {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
       setFormError(null);
-      setFormSuccess(null);
     }
   };
 
@@ -124,11 +123,12 @@ function AddMemberForm() {
 
     setLoading(true);
     setFormError(null);
-    setFormSuccess(null);
 
     try {
       // Get current authenticated user
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
       const { data: existingMembers, error: checkError } = await supabase
         .from("members")
@@ -152,7 +152,7 @@ function AddMemberForm() {
         return;
       }
 
-      const { data: _data, error } = await supabase
+      const { error } = await supabase
         .from("members")
         .insert([
           {
@@ -173,16 +173,16 @@ function AddMemberForm() {
 
       if (error) {
         setFormError(`Failed to create member: ${error.message}`);
+        toast.error(`Failed to create member: ${error.message}`);
       } else {
-        setFormSuccess(
-          "Member created successfully! You will be redirected shortly."
-        );
+        toast.success("Member created successfully!");
         setTimeout(() => {
           router.push("/members/list");
         }, 2000);
       }
-    } catch (_err) {
+    } catch {
       setFormError("An unexpected error occurred.");
+      toast.error("An unexpected error occurred.");
     } finally {
       setLoading(false);
     }
@@ -428,12 +428,6 @@ function AddMemberForm() {
               <span>{formError}</span>
             </div>
           )}
-          {formSuccess && (
-            <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm">
-              <CheckCircle className="h-4 w-4" />
-              <span>{formSuccess}</span>
-            </div>
-          )}
 
           {/* Navigation Buttons */}
           <div className="flex justify-between items-center">
@@ -457,7 +451,7 @@ function AddMemberForm() {
                 className="bg-black text-white hover:bg-black/90"
                 disabled={loading}
               >
-                {loading ? "Saving..." : formSuccess ? "Success!" : "Finish"}
+                {loading ? "Saving..." : "Finish"}
               </Button>
             )}
           </div>
