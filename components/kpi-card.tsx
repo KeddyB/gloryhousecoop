@@ -19,16 +19,16 @@ export function KpiCard({ title, value, change, icon, loading }: KpiCardProps) {
   }
 
   return (
-    <Card className="p-6">
+      <Card className="p-4 md:p-6">
       <div className="flex justify-between items-start mb-4">
-        <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
-        {iconMap[icon]}
+        <h3 className="text-xs md:text-sm font-medium text-muted-foreground line-clamp-2">{title}</h3>
+        <div className="ml-2">{iconMap[icon]}</div>
       </div>
       <div className="mb-2">
         {loading ? (
           <Skeleton className="h-8 w-3/4" />
         ) : (
-          <p className="text-3xl font-bold text-foreground">{value}</p>
+          <p className="text-2xl md:text-3xl font-bold text-foreground truncate">{value}</p>
         )}
       </div>
       <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -37,10 +37,10 @@ export function KpiCard({ title, value, change, icon, loading }: KpiCardProps) {
         ) : (
           <>
             <ArrowUp className="h-3 w-3" />
-            {change}
+            <span className="truncate">{change}</span>
           </>
         )}
       </div>
-    </Card>
+      </Card>
   )
 }
