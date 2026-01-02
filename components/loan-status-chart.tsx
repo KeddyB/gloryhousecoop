@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { PieChart, Pie, Cell, Legend, ResponsiveContainer, Tooltip } from "recharts"
 import { createClient } from "@/utils/supabase/client"
-import { isBefore, format, startOfMonth, addMonths } from "date-fns"
+import { isBefore, format, startOfMonth, addMonths, isSameMonth } from "date-fns"
 import { Skeleton } from "@/components/ui/skeleton"
 
 interface InterestPayment {
