@@ -207,7 +207,7 @@ export default function LoanListPage() {
             />
             <StatCard
               label="Total Disbursed"
-              value={`N${stats.totalDisbursed.toLocaleString()}`}
+              value={`₦${stats.totalDisbursed.toLocaleString()}`}
               icon={<CircleDollarSign className="h-5 w-5 text-[#1971C2]" />}
               bgColor="bg-[#E7F5FF]"
             />
@@ -362,7 +362,7 @@ export default function LoanListPage() {
                           <TableCell>
                             <div>
                               <p className="font-semibold text-[#1A1A1A] text-[15px]">
-                                N{Number(loan.loan_amount).toLocaleString()}
+                                ₦{Number(loan.loan_amount).toLocaleString()}
                               </p>
                               <p className="text-[#666666] text-xs font-medium">
                                 {loan.tenure} months
@@ -374,13 +374,13 @@ export default function LoanListPage() {
                               <p className="text-[#666666] text-xs font-medium">
                                 Paid:{" "}
                                 <span className="text-[#1A1A1A] font-semibold">
-                                  N{amountPaid.toLocaleString()}
+                                  ₦{amountPaid.toLocaleString()}
                                 </span>
                               </p>
                               <p className="text-[#666666] text-xs font-medium mt-1">
                                 Remaining:{" "}
                                 <span className="text-[#1A1A1A] font-semibold">
-                                  N{remaining.toLocaleString()}
+                                  ₦{remaining.toLocaleString()}
                                 </span>
                               </p>
                             </div>

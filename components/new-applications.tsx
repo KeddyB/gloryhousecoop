@@ -98,7 +98,7 @@ export function NewApplications() {
                 </div>
               </div>
               <div className="text-right">
-                {app.amount && <p className="text-sm font-semibold text-foreground">N{app.amount.toLocaleString()}</p>}
+                {app.amount && <p className="text-sm font-semibold text-foreground">₦{app.amount.toLocaleString()}</p>}
                 <Link href={app.isDisbursed ? "/loans/list" : "/loans/disbursement"}>
                     <Button variant="outline" size="sm" className="mt-2 bg-transparent h-8 text-xs">
                     {app.isDisbursed ? 'View' : 'Disburse'}
