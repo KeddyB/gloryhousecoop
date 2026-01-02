@@ -13,6 +13,7 @@ interface Transaction {
   amount: number
   status: string
   date: string
+  created_at: string
   type: 'disbursement' | 'repayment' | 'interest'
 }
 
@@ -35,10 +36,10 @@ export function RecentTransactions() {
           )
         `)
         .order('created_at', { ascending: false })
-        .limit(6)
+        .limit(20)
 
       // Fetch repayments
-      // Only fetch paid repayments to avoid 0 amounts
+      // Use updated_at for ordering as requested
       const { data: repayments, error: repaymentError } = await supabase
         .from('repayments')
         .select(`
@@ -48,9 +49,8 @@ export function RecentTransactions() {
             member:members(*)
           )
         `)
-        .eq('status', 'paid')
-        .order('paid_at', { ascending: false })
-        .limit(6)
+        .order('updated_at', { ascending: false })
+        .limit(20)
 
       // Fetch interest payments
       const { data: interestPayments, error: interestError } = await supabase
@@ -63,7 +63,7 @@ export function RecentTransactions() {
             )
         `)
         .order('created_at', { ascending: false })
-        .limit(6)
+        .limit(20)
 
       if (disbursementError) console.error("Error fetching disbursements:", disbursementError)
       if (repaymentError) console.error("Error fetching repayments:", repaymentError)
@@ -77,6 +77,7 @@ export function RecentTransactions() {
         amount: d.disbursement_amount,
         status: "Completed",
         date: d.created_at,
+        created_at: d.created_at,
         type: 'disbursement'
       }))
 
@@ -86,7 +87,9 @@ export function RecentTransactions() {
         name: r.loan?.member?.full_name || r.loan?.member?.name || "Unknown Member",
         amount: r.amount_paid,
         status: "Completed",
-        date: r.paid_at || r.created_at || new Date().toISOString(),
+        // Use updated_at as primary date source
+        date: r.updated_at || r.paid_at || r.created_at || new Date().toISOString(),
+        created_at: r.updated_at || r.paid_at || r.created_at || new Date().toISOString(),
         type: 'repayment'
       }))
 
@@ -97,12 +100,14 @@ export function RecentTransactions() {
         amount: i.amount_paid,
         status: "Completed",
         date: i.created_at || new Date().toISOString(),
+        created_at: i.created_at || new Date().toISOString(),
         type: 'interest'
       }))
 
-      // Combine and sort by date descending
+      // Combine and sort by created_at (which now holds updated_at for repayments) descending
       const allTransactions = [...disbursementTransactions, ...repaymentTransactions, ...interestTransactions]
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .filter(t => t.amount > 0)
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .slice(0, 6) // Take top 6
 
       setTransactions(allTransactions)
