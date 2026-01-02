@@ -94,17 +94,17 @@ export function DashboardContent() {
   if (loading) {
     return (
       <main className="flex-1 overflow-y-auto bg-background">
-        <div className="p-8">
+        <div className="p-4 md:p-8">
           {/* Header Skeleton */}
-          <div className="flex justify-between items-start mb-8">
+          <div className="flex justify-between items-start mb-6 md:mb-8 pt-12 md:pt-0">
             <div>
-              <Skeleton className="h-9 w-48 mb-2" />
-              <Skeleton className="h-5 w-64" />
+              <Skeleton className="h-8 w-40 mb-2 md:h-9 md:w-48" />
+              <Skeleton className="h-4 w-48 md:h-5 md:w-64" />
             </div>
           </div>
 
           {/* KPI Cards Skeleton */}
-          <div className="grid grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
             <Skeleton className="h-[126px] w-full" />
             <Skeleton className="h-[126px] w-full" />
             <Skeleton className="h-[126px] w-full" />
@@ -112,13 +112,13 @@ export function DashboardContent() {
           </div>
 
           {/* Charts Skeleton */}
-          <div className="grid grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
             <Skeleton className="h-[350px] w-full" />
             <Skeleton className="h-[350px] w-full" />
           </div>
 
           {/* Transactions and Applications Skeleton */}
-          <div className="grid grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
             <Skeleton className="h-[400px] w-full" />
             <Skeleton className="h-[400px] w-full" />
           </div>
@@ -129,17 +129,17 @@ export function DashboardContent() {
 
   return (
     <main className="flex-1 overflow-y-auto bg-background">
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         {/* Header */}
-        <div className="flex justify-between items-start mb-8">
+        <div className="flex justify-between items-start mb-6 md:mb-8 pt-12 md:pt-0">
           <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">Dashboard</h1>
-            <p className="text-muted-foreground">Welcome back, Here's your society overview</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">Dashboard</h1>
+            <p className="text-sm md:text-base text-muted-foreground">Welcome back, Here's your society overview</p>
           </div>
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
           <KpiCard title="Total Members" value={totalMembers} change={newMembersText} icon="users" loading={loading} />
           <KpiCard title="Interest Monthly Fees" value={totalInterest} change="Total collected" icon="wallet" loading={loading} />
           <KpiCard title="Active Loans" value={activeLoansCount} change="Currently active loans" icon="briefcase" loading={loading} />
@@ -147,13 +147,13 @@ export function DashboardContent() {
         </div>
 
         {/* Charts */}
-        <div className="grid grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
           <InterestFeeChart />
           <LoanStatusChart />
         </div>
 
         {/* Transactions and Applications */}
-        <div className="grid grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
           <RecentTransactions />
           <NewApplications />
         </div>

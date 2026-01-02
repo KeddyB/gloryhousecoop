@@ -185,11 +185,11 @@ export function RecentTransactions() {
 
   return (
     <Card className="p-6">
-      <h2 className="text-lg font-semibold text-foreground mb-6">Recent Transactions</h2>
+      <h2 className="text-base md:text-lg font-semibold text-foreground mb-4 md:mb-6">Recent Transactions</h2>
       {(disbursementErrorState || repaymentErrorState) && (
-        <div role="alert" aria-live="polite" className="mb-4 p-3 rounded bg-red-50 text-red-800 flex items-center justify-between">
+        <div role="alert" aria-live="polite" className="mb-4 p-2 md:p-3 rounded bg-red-50 text-red-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-2">
           <div>
-            <p className="text-sm font-medium">Issues loading data</p>
+            <p className="text-xs md:text-sm font-medium">Issues loading data</p>
             <p className="text-xs">{[disbursementErrorState, repaymentErrorState].filter(Boolean).join(' • ')}</p>
           </div>
           <div>
@@ -198,25 +198,25 @@ export function RecentTransactions() {
         </div>
       )}
       {transactions.length === 0 ? (
-         <p className="text-muted-foreground text-sm">No recent transactions found.</p>
+         <p className="text-muted-foreground text-xs md:text-sm">No recent transactions found.</p>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3 md:space-y-4">
           {transactions.map((transaction) => (
             <div
               key={transaction.id}
-              className="flex items-center justify-between p-4 bg-background rounded-lg border border-border"
+              className="flex flex-col md:flex-row md:items-center md:justify-between p-3 md:p-4 bg-background rounded-lg border border-border gap-2"
             >
-              <div className="flex items-center gap-4">
-                <Avatar className="h-10 w-10">
+              <div className="flex items-center gap-3 md:gap-4">
+                <Avatar className="h-8 md:h-10 w-8 md:w-10">
                    <AvatarFallback>{transaction.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">{transaction.name}</p>
+                  <p className="text-xs md:text-sm font-semibold text-foreground truncate">{transaction.name}</p>
                   <p className="text-xs text-muted-foreground">{transaction.title} • {format(new Date(transaction.date), 'MMM d, yyyy')}</p>
                 </div>
               </div>
-              <div className="text-right flex items-center">
-                <p className={`text-sm font-semibold ${transaction.type === 'disbursement' ? 'text-red-500' : 'text-green-600'}`}>
+              <div className="text-right flex items-center ml-auto">
+                <p className={`text-xs md:text-sm font-semibold ${transaction.type === 'disbursement' ? 'text-red-500' : 'text-green-600'}`}>
                    {transaction.type === 'disbursement' ? '-' : '+'}
                    ₦{transaction.amount.toLocaleString()}
                 </p>

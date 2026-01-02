@@ -22,6 +22,7 @@ import {
   Calculator,
   FileText,
   WalletCards,
+  X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -33,6 +34,7 @@ export function Sidebar() {
   const [expandedItems, setExpandedItems] = useState<string[]>(["Dashboard"])
   const [isOpen, setIsOpen] = useState(true)
   const [user, setUser] = useState<any>(null)
+  const [isMobile, setIsMobile] = useState(false)
 
   const menuItems = [
     {
@@ -82,6 +84,25 @@ export function Sidebar() {
     },
   ]
 
+  // Handle Mobile Check and Initial State
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768
+      setIsMobile(mobile)
+      if (mobile) {
+        setIsOpen(false)
+      } else {
+        setIsOpen(true)
+      }
+    }
+    
+    // Check on mount
+    checkMobile()
+    
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
   // Automatically expand the section if a submenu item is active
   useEffect(() => {
     menuItems.forEach((item) => {
@@ -92,6 +113,13 @@ export function Sidebar() {
       }
     })
   }, [pathname])
+
+  // Close sidebar on route change on mobile
+  useEffect(() => {
+    if (isMobile) {
+        setIsOpen(false)
+    }
+  }, [pathname, isMobile])
 
   // Fetch current user
   useEffect(() => {
@@ -112,127 +140,157 @@ export function Sidebar() {
   }
 
   return (
-    <aside
-      className={`${isOpen ? "w-80" : "w-20"} bg-white border-r border-border transition-all duration-300 flex flex-col h-screen`}
-    >
-      {/* Header */}
-      <div className="p-4 border-b border-border">
-        <div className={`flex items-center ${isOpen ? "justify-between" : "justify-center"}`}>
-          {isOpen && (
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-sm font-semibold text-gray-700">
-                GH
+    <>
+      {/* Mobile Backdrop */}
+      {isMobile && isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 transition-opacity"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+
+      {/* Mobile Toggle Button - Visible when sidebar is closed on mobile */}
+      {isMobile && !isOpen && (
+         <Button
+            variant="outline"
+            size="icon"
+            className="fixed top-4 left-4 z-30 bg-white shadow-sm h-10 w-10 md:hidden"
+            onClick={() => setIsOpen(true)}
+         >
+            <Menu className="h-5 w-5" />
+         </Button>
+      )}
+
+      <aside
+        className={cn(
+          "bg-white border-r border-border transition-all duration-300 flex flex-col h-screen",
+          // Mobile Styles
+          "fixed inset-y-0 left-0 z-50 w-[85%] max-w-[300px]",
+          isOpen ? "translate-x-0 shadow-xl" : "-translate-x-full",
+          // Desktop Styles
+          "md:relative md:translate-x-0 md:shadow-none md:z-auto",
+          isOpen ? "md:w-80" : "md:w-20"
+        )}
+      >
+        {/* Header */}
+        <div className="p-4 border-b border-border">
+          <div className={`flex items-center ${isOpen ? "justify-between" : "justify-center"}`}>
+            {isOpen && (
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-sm font-semibold text-gray-700">
+                  GH
+                </div>
+                <div className="flex-1">
+                  <h1 className="text-xs font-semibold text-foreground">Glory House</h1>
+                  <p className="text-xs text-muted-foreground">Multipurpose cooperative society limited</p>
+                </div>
               </div>
-              <div className="flex-1">
-                <h1 className="text-xs font-semibold text-foreground">Glory House</h1>
-                <p className="text-xs text-muted-foreground">Multipurpose cooperative society limited</p>
+            )}
+            <Button variant="ghost" size="icon" onClick={() => setIsOpen(!isOpen)}>
+              {isMobile && isOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+            </Button>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <nav className={`flex-1 overflow-y-auto ${isOpen ? "p-4 space-y-2" : "p-2 space-y-2"}`}>
+          {menuItems.map((item) => {
+            const Icon = item.icon
+            
+            // Handle direct links (no submenu)
+            if (!item.submenu) {
+               const isActive = pathname === item.href
+               return (
+                <Link
+                  key={item.id}
+                  href={item.href || "#"}
+                  className={cn(
+                    `w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium hover:bg-accent transition-colors`,
+                    !isOpen && "justify-center",
+                    isActive ? "text-primary bg-accent" : "text-foreground"
+                  )}
+                >
+                  <Icon className="h-5 w-5 flex-shrink-0" />
+                  {isOpen && <span className="flex-1 text-left">{item.label}</span>}
+                </Link>
+               )
+            }
+
+            // Handle submenus
+            const isExpanded = expandedItems.includes(item.id)
+            const isActiveGroup = item.submenu?.some((sub) => sub.href === pathname)
+
+            return (
+              <div key={item.id}>
+                <button
+                  onClick={() => toggleExpand(item.id)}
+                  className={cn(
+                    `w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium hover:bg-accent transition-colors`,
+                    !isOpen && "justify-center",
+                    isActiveGroup ? "text-primary bg-accent" : "text-foreground"
+                  )}
+                >
+                  <Icon className="h-5 w-5 flex-shrink-0" />
+                  {isOpen && (
+                    <>
+                      <span className="flex-1 text-left">{item.label}</span>
+                      <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-0" : "-rotate-90"}`} />
+                    </>
+                  )}
+                </button>
+
+                {isOpen && isExpanded && item.submenu && (
+                  <div className="mt-2 space-y-1 ml-8">
+                    {item.submenu.map((subitem, idx) => {
+                      const SubIcon = subitem.icon
+                      const isActive = subitem.href === pathname
+
+                      return (
+                        <Link
+                          key={idx}
+                          href={subitem.href}
+                          className={cn(
+                            "w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors rounded-md",
+                            isActive 
+                              ? "text-primary bg-primary/10 font-medium" 
+                              : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                          )}
+                        >
+                          <SubIcon className="h-4 w-4 flex-shrink-0" />
+                          <span>{subitem.label}</span>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
+            )
+          })}
+        </nav>
+
+        {/* Footer */}
+        <div className="border-t border-border p-4 space-y-3">
+          <div className={`flex items-center ${isOpen ? "gap-3" : "justify-center"}`}>
+            <div className="w-8 h-8 rounded-full bg-gray-300 flex-shrink-0 flex items-center justify-center text-xs">
+              {user ? (user.user_metadata?.full_name?.[0] || user.email?.[0] || 'U').toUpperCase() : ''}
             </div>
-          )}
-          <Button variant="ghost" size="icon" onClick={() => setIsOpen(!isOpen)}>
-            <Menu className="h-4 w-4" />
+            {isOpen && (
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  {user?.user_metadata?.full_name || user?.user_metadata?.name || 'User'}
+                </p>
+                <p className="text-xs text-muted-foreground truncate w-40">
+                  {user?.email}
+                </p>
+              </div>
+            )}
+          </div>
+          <Button variant="outline" className={`${isOpen ? "w-full" : "w-full"} justify-center gap-2 bg-transparent`} onClick={handleLogout}>
+            <LogOut className="h-4 w-4" />
+            {isOpen && "Logout"}
           </Button>
         </div>
-      </div>
-
-      {/* Navigation */}
-      <nav className={`flex-1 overflow-y-auto ${isOpen ? "p-4 space-y-2" : "p-2 space-y-2"}`}>
-        {menuItems.map((item) => {
-          const Icon = item.icon
-          
-          // Handle direct links (no submenu)
-          if (!item.submenu) {
-             const isActive = pathname === item.href
-             return (
-              <Link
-                key={item.id}
-                href={item.href || "#"}
-                className={cn(
-                  `w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium hover:bg-accent transition-colors`,
-                  !isOpen && "justify-center",
-                  isActive ? "text-primary bg-accent" : "text-foreground"
-                )}
-              >
-                <Icon className="h-5 w-5 flex-shrink-0" />
-                {isOpen && <span className="flex-1 text-left">{item.label}</span>}
-              </Link>
-             )
-          }
-
-          // Handle submenus
-          const isExpanded = expandedItems.includes(item.id)
-          const isActiveGroup = item.submenu?.some((sub) => sub.href === pathname)
-
-          return (
-            <div key={item.id}>
-              <button
-                onClick={() => toggleExpand(item.id)}
-                className={cn(
-                  `w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium hover:bg-accent transition-colors`,
-                  !isOpen && "justify-center",
-                  isActiveGroup ? "text-primary bg-accent" : "text-foreground"
-                )}
-              >
-                <Icon className="h-5 w-5 flex-shrink-0" />
-                {isOpen && (
-                  <>
-                    <span className="flex-1 text-left">{item.label}</span>
-                    <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-0" : "-rotate-90"}`} />
-                  </>
-                )}
-              </button>
-
-              {isOpen && isExpanded && item.submenu && (
-                <div className="mt-2 space-y-1 ml-8">
-                  {item.submenu.map((subitem, idx) => {
-                    const SubIcon = subitem.icon
-                    const isActive = subitem.href === pathname
-
-                    return (
-                      <Link
-                        key={idx}
-                        href={subitem.href}
-                        className={cn(
-                          "w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors rounded-md",
-                          isActive 
-                            ? "text-primary bg-primary/10 font-medium" 
-                            : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-                        )}
-                      >
-                        <SubIcon className="h-4 w-4 flex-shrink-0" />
-                        <span>{subitem.label}</span>
-                      </Link>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </nav>
-
-      {/* Footer */}
-      <div className="border-t border-border p-4 space-y-3">
-        <div className={`flex items-center ${isOpen ? "gap-3" : "justify-center"}`}>
-          <div className="w-8 h-8 rounded-full bg-gray-300 flex-shrink-0 flex items-center justify-center text-xs">
-            {user ? (user.user_metadata?.full_name?.[0] || user.email?.[0] || 'U').toUpperCase() : ''}
-          </div>
-          {isOpen && (
-            <div>
-              <p className="text-sm font-medium text-foreground">
-                {user?.user_metadata?.full_name || user?.user_metadata?.name || 'User'}
-              </p>
-              <p className="text-xs text-muted-foreground truncate w-40">
-                {user?.email}
-              </p>
-            </div>
-          )}
-        </div>
-        <Button variant="outline" className={`${isOpen ? "w-full" : "w-full"} justify-center gap-2 bg-transparent`} onClick={handleLogout}>
-          <LogOut className="h-4 w-4" />
-          {isOpen && "Logout"}
-        </Button>
-      </div>
-    </aside>
+      </aside>
+    </>
   )
 }

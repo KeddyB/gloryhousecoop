@@ -79,11 +79,11 @@ export function NewApplications() {
 
   return (
     <Card className="p-6">
-      <h2 className="text-lg font-semibold text-foreground mb-6">New Applications</h2>
+      <h2 className="text-base md:text-lg font-semibold text-foreground mb-4 md:mb-6">New Applications</h2>
       {applications.length === 0 ? (
-        <p className="text-muted-foreground text-sm">No new applications found.</p>
+        <p className="text-muted-foreground text-xs md:text-sm">No new applications found.</p>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3 md:space-y-4">
           {applications.map((app) => {
             const dateObj = new Date(app?.date as any)
             const dateText = !isNaN(dateObj.getTime()) ? format(dateObj, 'MMM d, yyyy') : 'Unknown date'
@@ -91,21 +91,21 @@ export function NewApplications() {
             return (
               <div
                 key={app.id}
-                className="flex items-center justify-between p-4 bg-background rounded-lg border border-border"
+                className="flex flex-col md:flex-row md:items-center md:justify-between p-3 md:p-4 bg-background rounded-lg border border-border gap-2"
               >
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{app.name}</p>
-                  <div className="flex items-center gap-2 mt-1">
+                <div className="flex-1">
+                  <p className="text-xs md:text-sm font-semibold text-foreground truncate">{app.name}</p>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <p className="text-xs text-muted-foreground">{dateText}</p>
-                    <Badge variant={app.isDisbursed ? "default" : "secondary"} className={`text-[10px] h-5 ${app.isDisbursed ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100'}`}>
+                    <Badge variant={app.isDisbursed ? "default" : "secondary"} className={`text-[9px] md:text-[10px] h-5 ${app.isDisbursed ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100'}`}>
                       {app.isDisbursed ? 'Disbursed' : 'Not Disbursed'}
                     </Badge>
                   </div>
                 </div>
-                <div className="text-right">
-                  {app.amount && <p className="text-sm font-semibold text-foreground">₦{app.amount.toLocaleString()}</p>}
+                <div className="text-right md:ml-auto">
+                  {app.amount && <p className="text-xs md:text-sm font-semibold text-foreground">₦{app.amount.toLocaleString()}</p>}
                   <Link href={app.isDisbursed ? "/loans/list" : "/loans/disbursement"}>
-                      <Button variant="outline" size="sm" className="mt-2 bg-transparent h-8 text-xs">
+                      <Button variant="outline" size="sm" className="mt-1 md:mt-2 bg-transparent h-7 md:h-8 text-[11px] md:text-xs">
                       {app.isDisbursed ? 'View' : 'Disburse'}
                       </Button>
                   </Link>
