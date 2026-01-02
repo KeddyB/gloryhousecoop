@@ -36,7 +36,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Loan, LoanState } from "../types";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrencyShort } from "@/lib/utils";
 
 export default function LoanListPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -171,7 +171,7 @@ export default function LoanListPage() {
   };
 
   return (
-    <div className="flex h-screen bg-[#FDFDFD]">
+    <div className="flex h-screen bg-background">
       <Sidebar />
       <div className="flex-1 overflow-auto">
         <div className="p-10 w-full mx-auto space-y-10">
@@ -207,7 +207,7 @@ export default function LoanListPage() {
             />
             <StatCard
               label="Total Disbursed"
-              value={`N${stats.totalDisbursed.toLocaleString()}`}
+              value={`₦${formatCurrencyShort(stats.totalDisbursed)}`}
               icon={<CircleDollarSign className="h-5 w-5 text-[#1971C2]" />}
               bgColor="bg-[#E7F5FF]"
             />
@@ -494,17 +494,19 @@ function StatCard({
 }) {
   return (
     <Card className="border border-[#EEEEEE] shadow-none rounded-2xl p-6">
-      <div className="flex items-start gap-4">
-        <div
-          className={cn(
-            "h-11 w-11 rounded-full flex items-center justify-center",
-            bgColor
-          )}
-        >
-          {icon}
+      <div className="flex flex-col items-start gap-4">
+        <div className="flex justify-between w-full items-center">
+          <div
+            className={cn(
+              "h-10 w-10 rounded-full flex items-center justify-center",
+              bgColor
+            )}
+          >
+            {icon}
+          </div>
+          <p className="text-sm font-medium text-[#666666]">{label}</p>
         </div>
         <div className="space-y-1">
-          <p className="text-sm font-medium text-[#666666]">{label}</p>
           <h3 className="text-2xl font-bold text-[#1A1A1A] tracking-tight">
             {value}
           </h3>

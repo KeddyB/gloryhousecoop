@@ -339,7 +339,7 @@ function LoanApplicationForm() {
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
-      <div className="flex-1 overflow-auto bg-gray-50/50">
+      <div className="flex-1 overflow-auto bg-background">
         <div className="p-8 w-full mx-auto space-y-8">
           {/* Header */}
           <div className="flex items-center gap-4">
@@ -362,7 +362,7 @@ function LoanApplicationForm() {
           </div>
 
           {/* Progress Card */}
-          <Card className="border-none shadow-sm">
+          <Card className="shadow-sm">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold">Registration Process</h3>
@@ -417,7 +417,7 @@ function LoanApplicationForm() {
           </Card>
 
           {/* Form Content */}
-          <Card className="border-none shadow-sm min-h-100">
+          <Card className="shadow-sm min-h-100">
             <CardContent className="p-8">
               {currentStep === 1 && (
                 <div className="space-y-6">
