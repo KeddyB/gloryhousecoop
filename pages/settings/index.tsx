@@ -164,7 +164,7 @@ export default function SettingsPage() {
     <div className="flex h-screen bg-background">
       <Sidebar />
       <div className="flex-1 overflow-auto">
-        <div className="p-8 space-y-8">
+        <div className="pt-[4.5rem] p-8 space-y-8 md:pt-8">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
             <p className="text-muted-foreground">

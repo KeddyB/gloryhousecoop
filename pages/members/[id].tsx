@@ -1545,14 +1545,14 @@ export default function MemberProfile() {
           </Tabs>
 
           {/* Footer Warning */}
-          {(pendingInterest > 0 || missedRepayment > 100) && (
+          {(pendingInterest != null && pendingInterest > 0 || missedRepayment > 100) && (
           <div className="flex items-center gap-2 p-4 bg-orange-50 border border-orange-100 rounded-lg text-orange-600 text-sm">
             <AlertCircle className="h-4 w-4" />
             <span>
-              {pendingInterest > 0 && missedRepayment > 100 
-                  ? `This member has pending interest fees (₦${pendingInterest.toLocaleString()}) and missed loan installments (₦${missedRepayment.toLocaleString()}). Please follow up.`
-                  : pendingInterest > 0 
-                      ? `This member has pending interest fee payment(s) of ₦${pendingInterest.toLocaleString()}. Please follow up.`
+              { (pendingInterest != null && pendingInterest > 0) && missedRepayment > 100 
+                  ? `This member has pending interest fees (₦${(pendingInterest || 0).toLocaleString()}) and missed loan installments (₦${missedRepayment.toLocaleString()}). Please follow up.`
+                  : (pendingInterest != null && pendingInterest > 0) 
+                      ? `This member has pending interest fee payment(s) of ₦${(pendingInterest || 0).toLocaleString()}. Please follow up.`
                       : `This member has missed loan installment(s) of ₦${missedRepayment.toLocaleString()}. Please follow up.`
               }
             </span>

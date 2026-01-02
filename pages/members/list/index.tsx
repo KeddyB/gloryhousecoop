@@ -200,7 +200,7 @@ export default function MembersListPage() {
     <div className="flex h-screen bg-background">
       <Sidebar />
       <div className="flex-1 overflow-auto">
-        <div className="p-8 space-y-8">
+        <div className="pt-[4.5rem] p-8 space-y-8 md:pt-8">
           {/* Header Section */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
