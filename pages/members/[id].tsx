@@ -100,32 +100,37 @@ export default function MemberProfile() {
     if (!newNote.trim() || !memberId) return;
     setIsAddingNote(true);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      alert("You must be logged in to add a note.");
-      setIsAddingNote(false);
-      return;
-    }
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        alert("You must be logged in to add a note.");
+        return;
+      }
 
-    const { error } = await supabase.from("member_notes").insert([
-      {
-        member_id: memberId,
-        note: newNote,
-        created_by_name: user.user_metadata.name,
-      },
-    ]);
+      const { error } = await supabase.from("member_notes").insert([
+        {
+          member_id: memberId,
+          note: newNote,
+          created_by_name: user.user_metadata.name,
+        },
+      ]);
 
-    if (error) {
+      if (error) {
+        throw error;
+      }
+
+      // Success path
+      setNewNote("");
+      setNoteDialogOpen(false); // Close dialog immediately
+      await fetchNotes(); // Then refresh notes in background
+    } catch (error) {
       console.error("Error adding note:", error);
       alert("Could not add note.");
-    } else {
-      setNewNote("");
-      setNoteDialogOpen(false);
-      fetchMemberData(); // Refresh notes
+    } finally {
+      setIsAddingNote(false);
     }
-    setIsAddingNote(false);
   }
 
   async function handleDeleteNote(noteId: string) {
@@ -143,7 +148,7 @@ export default function MemberProfile() {
         throw new Error("Failed to delete note");
       }
 
-      fetchMemberData(); // Refresh notes
+      await fetchNotes(); // Refresh notes
     } catch (error) {
       console.error("Error deleting note:", error);
       alert("Could not delete note.");
@@ -176,13 +181,13 @@ export default function MemberProfile() {
     }
   }
 
-  const [totalInterestPaid, setTotalInterestPaid] = useState<number>(0);
-  const [pendingInterest, setPendingInterest] = useState<number>(0);
+  const [totalInterestPaid, setTotalInterestPaid] = useState<number | null>(null);
+  const [pendingInterest, setPendingInterest] = useState<number | null>(null);
   const [missedRepayment, setMissedRepayment] = useState<number>(0);
-  const [activeLoan, setActiveLoan] = useState<number>(0);
+  const [activeLoan, setActiveLoan] = useState<number | null>(null);
   const [activeLoans, setActiveLoans] = useState<any[]>([]);
-  const [currentBalance, setCurrentBalance] = useState<number>(0);
-  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [currentBalance, setCurrentBalance] = useState<number | null>(null);
+  const [recentActivity, setRecentActivity] = useState<any[] | null>(null);
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
   const [interestHistory, setInterestHistory] = useState<any[]>([]);
   const [loanHistory, setLoanHistory] = useState<any[]>([]);
@@ -192,7 +197,23 @@ export default function MemberProfile() {
     if (!memberId) return;
 
     try {
-      // Fetch Active Loans (plural)
+      // Fetch Total Interest Paid directly from interest_payments
+      const { data: interestPayments, error: interestError } = await supabase
+        .from("interest_payments")
+        .select("amount_paid, loans!inner(member_id)")
+        .eq("loans.member_id", memberId);
+
+      if (interestError) {
+        console.error("Error fetching interest payments:", interestError);
+      } else {
+        const totalPaid = interestPayments.reduce(
+          (sum, payment) => sum + (payment.amount_paid || 0),
+          0
+        );
+        setTotalInterestPaid(totalPaid);
+      }
+
+      // Fetch Active Loans (plural) for KPI cards
       const { data: loansData, error: loansError } = await supabase
         .from("loans")
         .select("*, disbursements(created_at), interest_payments(payment_for_month, amount_paid), repayments(amount_paid)")
@@ -280,195 +301,266 @@ export default function MemberProfile() {
         setMissedRepayment(totalMissedRepayment);
       }
 
-      // Fetch All Loans with all related transactions for Recent Activity and Total Interest
-      const { data: allLoansData, error: allLoansError } = await supabase
-        .from("loans")
-        .select(`
-            *,
-            interest_payments(id, amount_paid, payment_date, created_at, payment_for_month, payment_method, notes),
-            repayments(id, amount_paid, paid_at, created_at, updated_at, notes),
-            disbursements(id, disbursement_amount, created_at, notes)
-        `)
-        .eq("member_id", memberId);
-
-      if (allLoansError) {
-         console.error("Error fetching all loans data:", allLoansError);
-      } else if (allLoansData) {
-         setLoanHistory(allLoansData);
-
-         // 1. Calculate Total Interest Paid
-         const totalPaid = allLoansData.reduce((sum, loan: any) => {
-             const loanTotal = loan.interest_payments ? loan.interest_payments.reduce((lSum: number, p: any) => lSum + p.amount_paid, 0) : 0;
-             return sum + loanTotal;
-         }, 0);
-         setTotalInterestPaid(totalPaid);
-
-         // 2. Build Recent Activity
-         let activities: any[] = [];
-         let history: any[] = [];
-         
-         allLoansData.forEach((loan: any) => {
-             // Interest
-             if (loan.interest_payments) {
-                 loan.interest_payments.forEach((p: any) => {
-                     // Add to recent activity
-                     activities.push({
-                         id: `int-${p.id}`,
-                         title: "Interest Payment",
-                         date: p.payment_date || p.created_at,
-                         created_at: p.created_at,
-                         amount: p.amount_paid,
-                         type: "success" // Money IN
-                     });
-
-                     // Add to interest history
-                     history.push({
-                         month: p.payment_for_month ? format(new Date(p.payment_for_month), "MMMM, yyyy") : "Unknown",
-                         amount: `N${(p.amount_paid || 0).toLocaleString()}`,
-                         date: format(new Date(p.payment_date || p.created_at), "dd-MM-yyyy"),
-                         method: p.payment_method || "Bank Transfer",
-                         status: "paid",
-                         rawDate: new Date(p.payment_date || p.created_at)
-                     });
-                 });
-             }
-             // Repayments
-             if (loan.repayments) {
-                 loan.repayments.forEach((r: any) => {
-                     activities.push({
-                         id: `rep-${r.id}`,
-                         title: "Loan Repayment",
-                         date: r.updated_at || r.paid_at || r.created_at,
-                         created_at: r.updated_at || r.paid_at || r.created_at,
-                         amount: r.amount_paid,
-                         type: "success" // Money IN
-                     });
-                 });
-             }
-             // Disbursements
-             if (loan.disbursements) {
-                 loan.disbursements.forEach((d: any) => {
-                     activities.push({
-                         id: `dis-${d.id}`,
-                         title: "Loan Disbursement",
-                         date: d.created_at,
-                         created_at: d.created_at,
-                         amount: d.disbursement_amount,
-                         type: "danger" // Money OUT
-                     });
-                 });
-             }
-         });
-         
-         // Filter out zero amount transactions
-         activities = activities.filter(a => a.amount > 0);
-
-         // Sort by created_at desc (latest first)
-         activities.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-         
-         setAllTransactions(activities);
-         // Take top 4
-         setRecentActivity(activities.slice(0, 4));
-
-         // Sort interest history by date desc
-         history.sort((a, b) => b.rawDate.getTime() - a.rawDate.getTime());
-         setInterestHistory(history);
-
-        const documents = allLoansData.flatMap((loan: any) => {
-          const docs = [];
-          if (loan.collateral_docs_url) {
-            docs.push({
-              name: "Collateral Document",
-              url: loan.collateral_docs_url,
-              loanId: loan.id,
-              createdAt: loan.created_at
-            });
-          }
-          if (loan.loan_agreement_url) {
-            docs.push({
-              name: "Loan Agreement",
-              url: loan.loan_agreement_url,
-              loanId: loan.id,
-              createdAt: loan.created_at
-            });
-          }
-          return docs;
-        });
-        setLoanDocuments(documents);
-
-        // Fetch notes
-        const { data: memberNotes, error: notesError } = await supabase
-          .from("member_notes")
-          .select("*")
-          .eq("member_id", memberId);
-
-        if (notesError) {
-          console.error("Error fetching member notes:", notesError);
-        }
-
-        let allNotes: any[] = [];
-        if (memberNotes) {
-          allNotes = memberNotes.map((n) => ({
-            ...n,
-            source: "member_notes",
-            date: n.created_at,
-          }));
-        }
-
-        allLoansData.forEach((loan: any) => {
-          if (loan.disbursements) {
-            loan.disbursements.forEach((d: any) => {
-              if (d.notes)
-                allNotes.push({
-                  id: `dis-${d.id}`,
-                  note: d.notes,
-                  date: d.created_at,
-                  created_by: { raw_user_meta_data: { name: "System" } },
-                  source: "disbursement",
-                });
-            });
-          }
-          if (loan.repayments) {
-            loan.repayments.forEach((r: any) => {
-              if (r.notes)
-                allNotes.push({
-                  id: `rep-${r.id}`,
-                  note: r.notes,
-                  date: r.updated_at,
-                  created_by: { raw_user_meta_data: { name: "System" } },
-                  source: "repayment",
-                });
-            });
-          }
-          if (loan.interest_payments) {
-            loan.interest_payments.forEach((p: any) => {
-              if (p.notes)
-                allNotes.push({
-                  id: `int-${p.id}`,
-                  note: p.notes,
-                  date: p.created_at,
-                  created_by: { raw_user_meta_data: { name: "System" } },
-                  source: "interest_payment",
-                });
-            });
-          }
-        });
-
-        allNotes.sort(
-          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-        );
-        console.log("All Notes:", allNotes);
-        setNotes(allNotes);
-      }
-
     } catch (error) {
       console.error("Unexpected error:", error);
     }
   }
 
+  async function fetchInterestHistory() {
+    if (!memberId) return;
+
+    const { data: payments, error } = await supabase
+      .from("interest_payments")
+      .select("*, loans!inner(member_id)")
+      .eq("loans.member_id", memberId);
+
+    if (error) {
+      console.error("Error fetching interest history:", error);
+      setInterestHistory([]);
+    } else {
+      const history = payments.map(p => {
+        return {
+          month: p.payment_for_month ? format(new Date(p.payment_for_month), "MMMM, yyyy") : "Unknown",
+          amount: `N${(p.amount_paid || 0).toLocaleString()}`,
+          date: format(new Date(p.payment_date || p.created_at), "dd-MM-yyyy"),
+          method: p.payment_method || "Bank Transfer",
+          status: "paid", // Assuming all records here are paid
+          rawDate: new Date(p.created_at)
+        };
+      });
+
+      // Sort by date desc
+      history.sort((a, b) => {
+        const dateA = a.rawDate;
+        const dateB = b.rawDate;
+        if (isNaN(dateA.getTime())) return 1;
+        if (isNaN(dateB.getTime())) return -1;
+        return dateB.getTime() - dateA.getTime();
+      });
+
+      setInterestHistory(history);
+    }
+  }
+
+  async function fetchLoanHistory() {
+    if (!memberId) return;
+
+    const { data: loans, error } = await supabase
+      .from("loans")
+      .select(`
+          *,
+          repayments(amount_paid),
+          disbursements(created_at)
+      `)
+      .eq("member_id", memberId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error("Error fetching loan history:", error);
+      setLoanHistory([]);
+    } else {
+      setLoanHistory(loans || []);
+    }
+  }
+
+  async function fetchLoanDocuments() {
+    if (!memberId) return;
+
+    const { data: loans, error } = await supabase
+      .from("loans")
+      .select("id, created_at, collateral_docs_url, loan_agreement_url")
+      .eq("member_id", memberId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error("Error fetching loan documents:", error);
+      setLoanDocuments([]);
+    } else {
+      const documents = (loans || []).flatMap((loan: any) => {
+        const docs = [];
+        if (loan.collateral_docs_url) {
+          docs.push({
+            name: "Collateral Document",
+            url: loan.collateral_docs_url,
+            loanId: loan.id,
+            createdAt: loan.created_at
+          });
+        }
+        if (loan.loan_agreement_url) {
+          docs.push({
+            name: "Loan Agreement",
+            url: loan.loan_agreement_url,
+            loanId: loan.id,
+            createdAt: loan.created_at
+          });
+        }
+        return docs;
+      });
+      setLoanDocuments(documents);
+    }
+  }
+
+  async function fetchNotes() {
+    if (!memberId) return;
+
+    let allNotes: any[] = [];
+
+    // 1. Fetch from member_notes
+    const { data: memberNotes, error: memberNotesError } = await supabase
+      .from("member_notes")
+      .select("id, note, created_at, created_by_name")
+      .eq("member_id", memberId);
+
+    if (memberNotesError) {
+      console.error("Error fetching member notes:", memberNotesError);
+    } else if (memberNotes) {
+      allNotes = allNotes.concat(memberNotes.map(n => ({
+        id: n.id,
+        note: n.note,
+        date: n.created_at,
+        created_by_name: n.created_by_name,
+        source: "member_notes"
+      })));
+    }
+
+    // 2. Get loan IDs for the member
+    const { data: loans, error: loansError } = await supabase
+      .from("loans")
+      .select("id")
+      .eq("member_id", memberId);
+
+    if (loansError) {
+      console.error("Error fetching loans for notes:", loansError);
+    } else if (loans && loans.length > 0) {
+      const loanIds = loans.map(l => l.id);
+
+      const { data: disbursementNotes, error: disbursementError } = await supabase.from("disbursements").select("id, notes, created_at, disbursed_by_name").in("loan_id", loanIds).not("notes", "is", null);
+      
+      if (disbursementError) console.error("Error fetching disbursement notes:", disbursementError);
+      else if (disbursementNotes) {
+        allNotes = allNotes.concat(disbursementNotes.map(d => ({
+          id: `dis-${d.id}`, note: d.notes, date: d.created_at,
+          created_by_name: d.disbursed_by_name || "System", source: "disbursement",
+        })));
+      }
+
+      const { data: repaymentNotes, error: repaymentError } = await supabase.from("repayments").select("id, notes, paid_at, updated_at, created_at, created_by").in("loan_id", loanIds).not("notes", "is", null);
+
+      if (repaymentError) console.error("Error fetching repayment notes:", repaymentError);
+      else if (repaymentNotes) {
+        allNotes = allNotes.concat(repaymentNotes.map(r => ({
+          id: `rep-${r.id}`, note: r.notes, date: r.updated_at || r.paid_at || r.created_at,
+          created_by_name: r.created_by || "System", source: "repayment",
+        })));
+      }
+
+      const { data: interestNotes, error: interestError } = await supabase.from("interest_payments").select("id, notes, created_at").in("loan_id", loanIds).not("notes", "is", null);
+
+      if (interestError) console.error("Error fetching interest payment notes:", interestError);
+      else if (interestNotes) {
+        allNotes = allNotes.concat(interestNotes.map(p => ({
+          id: `int-${p.id}`, note: p.notes, date: p.created_at,
+          created_by_name: "System", source: "interest_payment",
+        })));
+      }
+    }
+
+    // 3. Sort and set
+    allNotes.sort((a, b) => {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        if (isNaN(dateA.getTime())) return 1;
+        if (isNaN(dateB.getTime())) return -1;
+        return dateB.getTime() - dateA.getTime();
+    });
+    setNotes(allNotes);
+  }
+
+  async function fetchRecentActivity() {
+    if (!memberId) return;
+
+    const { data: loans, error: loansError } = await supabase
+      .from("loans")
+      .select("id")
+      .eq("member_id", memberId);
+
+    if (loansError) {
+      console.error("Error fetching loans for recent activity:", loansError);
+      return;
+    }
+    
+    if (!loans || loans.length === 0) {
+      setAllTransactions([]);
+      setRecentActivity([]);
+      return;
+    }
+
+    const loanIds = loans.map(l => l.id);
+
+    let activities: any[] = [];
+
+    const { data: interestPayments, error: interestError } = await supabase.from("interest_payments").select("id, amount_paid, payment_date, created_at").in("loan_id", loanIds);
+
+    if (interestError) console.error("Error fetching interest payments for activity:", interestError);
+    else if (interestPayments) {
+      activities = activities.concat(interestPayments.map(p => {
+          return {
+            id: `int-${p.id}`, title: "Interest Payment",
+            date: p.payment_date || p.created_at,
+            created_at: p.created_at,
+            amount: p.amount_paid, type: "success"
+          };
+      }));
+    }
+
+    const { data: repayments, error: repaymentError } = await supabase.from("repayments").select("id, amount_paid, paid_at, updated_at, created_at").in("loan_id", loanIds);
+
+    if (repaymentError) console.error("Error fetching repayments for activity:", repaymentError);
+    else if (repayments) {
+      activities = activities.concat(repayments.map(r => {
+          const activityDate = r.updated_at || r.paid_at || r.created_at;
+          return {
+            id: `rep-${r.id}`, title: "Loan Repayment", date: activityDate,
+            created_at: activityDate, amount: r.amount_paid, type: "success"
+          };
+      }));
+    }
+
+    const { data: disbursements, error: disbursementError } = await supabase.from("disbursements").select("id, disbursement_amount, created_at").in("loan_id", loanIds);
+
+    if (disbursementError) console.error("Error fetching disbursements for activity:", disbursementError);
+    else if (disbursements) {
+      activities = activities.concat(disbursements.map(d => ({
+          id: `dis-${d.id}`, title: "Loan Disbursement", date: d.created_at,
+          created_at: d.created_at, amount: d.disbursement_amount, type: "danger"
+      })));
+    }
+
+    activities = activities.filter(a => a.amount > 0);
+
+    activities.sort((a, b) => {
+      const dateA = new Date(a.created_at);
+      const dateB = new Date(b.created_at);
+      if (isNaN(dateA.getTime())) return 1;
+      if (isNaN(dateB.getTime())) return -1;
+      return dateB.getTime() - dateA.getTime();
+    });
+
+    setAllTransactions(activities);
+    setRecentActivity(activities.slice(0, 4));
+  }
+
   useEffect(() => {
-    fetchMember();
-    fetchMemberData();
+    const fetchAll = async () => {
+      await fetchMember();
+      await fetchMemberData();
+      await fetchInterestHistory();
+      await fetchLoanHistory();
+      await fetchLoanDocuments();
+      await fetchNotes();
+      await fetchRecentActivity();
+    };
+    fetchAll();
   }, [memberId]);
 
   if (loading) {
@@ -653,7 +745,13 @@ export default function MemberProfile() {
                   <p className="text-xs text-muted-foreground">
                     Total Interest Paid
                   </p>
-                  <p className="text-xl font-bold">₦{totalInterestPaid.toLocaleString()}</p>
+                  <p className="text-xl font-bold">
+                    {totalInterestPaid !== null ? (
+                      `₦${totalInterestPaid.toLocaleString()}`
+                    ) : (
+                      <Skeleton className="h-6 w-24 mt-1" />
+                    )}
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -666,7 +764,13 @@ export default function MemberProfile() {
                   <p className="text-xs text-muted-foreground">
                     Pending Interest
                   </p>
-                  <p className="text-xl font-bold">₦{pendingInterest.toLocaleString()}</p>
+                  <p className="text-xl font-bold">
+                    {pendingInterest !== null ? (
+                      `₦${pendingInterest.toLocaleString()}`
+                    ) : (
+                      <Skeleton className="h-6 w-24 mt-1" />
+                    )}
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -677,7 +781,13 @@ export default function MemberProfile() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Active Loan</p>
-                  <p className="text-xl font-bold">₦{activeLoan.toLocaleString()}</p>
+                  <p className="text-xl font-bold">
+                    {activeLoan !== null ? (
+                      `₦${activeLoan.toLocaleString()}`
+                    ) : (
+                      <Skeleton className="h-6 w-24 mt-1" />
+                    )}
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -690,7 +800,13 @@ export default function MemberProfile() {
                   <p className="text-xs text-muted-foreground">
                     Current Balance
                   </p>
-                  <p className="text-xl font-bold">₦{currentBalance.toLocaleString()}</p>
+                  <p className="text-xl font-bold">
+                    {currentBalance !== null ? (
+                      `₦${currentBalance.toLocaleString()}`
+                    ) : (
+                      <Skeleton className="h-6 w-24 mt-1" />
+                    )}
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -733,7 +849,14 @@ export default function MemberProfile() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-6">
-                      {recentActivity.length > 0 ? (
+                      {recentActivity === null ? (
+                        <div className="space-y-4">
+                          <Skeleton className="h-10 w-full" />
+                          <Skeleton className="h-10 w-full" />
+                          <Skeleton className="h-10 w-full" />
+                          <Skeleton className="h-10 w-full" />
+                        </div>
+                      ) : recentActivity.length > 0 ? (
                         recentActivity.map((item) => (
                           <div
                             key={item.id}
@@ -1073,7 +1196,7 @@ export default function MemberProfile() {
                     variant="outline" 
                     size="sm" 
                     className="h-8"
-                    onClick={() => router.push("/loans/applications/new")}
+                    onClick={() => router.push("/loans/applications")}
                   >
                     <Plus className="h-3.5 w-3.5 mr-1.5" /> New Loan
                   </Button>

@@ -26,6 +26,7 @@ import { Search, Loader2, CheckCircle2, Clock, AlertCircle, Banknote, ChevronLef
 import { createClient } from "@/utils/supabase/client";
 import { format, startOfMonth, addMonths, isBefore, startOfDay, isSameMonth, isAfter, endOfMonth, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface FeeRecord {
   id: string;
@@ -296,50 +297,61 @@ export default function FeeListPage() {
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Card className="shadow-sm">
-                <CardContent className="p-6 flex items-center gap-4">
-                    <div className="h-10 w-10 rounded-full bg-green-50 flex items-center justify-center text-green-600">
-                        <CheckCircle2 className="h-5 w-5" />
-                    </div>
-                    <div>
-                        <p className="text-xs text-muted-foreground uppercase font-medium">Paid</p>
-                        <h3 className="text-2xl font-bold">{stats.paid}</h3>
-                    </div>
-                </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-                <CardContent className="p-6 flex items-center gap-4">
-                    <div className="h-10 w-10 rounded-full bg-orange-50 flex items-center justify-center text-orange-600">
-                        <Clock className="h-5 w-5" />
-                    </div>
-                    <div>
-                        <p className="text-xs text-muted-foreground uppercase font-medium">Pending</p>
-                        <h3 className="text-2xl font-bold">{stats.pending}</h3>
-                    </div>
-                </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-                <CardContent className="p-6 flex items-center gap-4">
-                    <div className="h-10 w-10 rounded-full bg-red-50 flex items-center justify-center text-red-600">
-                        <AlertCircle className="h-5 w-5" />
-                    </div>
-                    <div>
-                        <p className="text-xs text-muted-foreground uppercase font-medium">Overdue</p>
-                        <h3 className="text-2xl font-bold">{stats.overdue}</h3>
-                    </div>
-                </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-                <CardContent className="p-6 flex items-center gap-4">
-                    <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
-                        <Banknote className="h-5 w-5" />
-                    </div>
-                    <div>
-                        <p className="text-xs text-muted-foreground uppercase font-medium">Total Collected</p>
-                        <h3 className="text-2xl font-bold">₦{stats.totalCollected.toLocaleString()}</h3>
-                    </div>
-                </CardContent>
-            </Card>
+            {isLoading ? (
+              <>
+                <Skeleton className="h-[100px] rounded-xl" />
+                <Skeleton className="h-[100px] rounded-xl" />
+                <Skeleton className="h-[100px] rounded-xl" />
+                <Skeleton className="h-[100px] rounded-xl" />
+              </>
+            ) : (
+              <>
+                <Card className="shadow-sm">
+                    <CardContent className="p-6 flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-full bg-green-50 flex items-center justify-center text-green-600">
+                            <CheckCircle2 className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <p className="text-xs text-muted-foreground uppercase font-medium">Paid</p>
+                            <h3 className="text-2xl font-bold">{stats.paid}</h3>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card className="shadow-sm">
+                    <CardContent className="p-6 flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-full bg-orange-50 flex items-center justify-center text-orange-600">
+                            <Clock className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <p className="text-xs text-muted-foreground uppercase font-medium">Pending</p>
+                            <h3 className="text-2xl font-bold">{stats.pending}</h3>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card className="shadow-sm">
+                    <CardContent className="p-6 flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-full bg-red-50 flex items-center justify-center text-red-600">
+                            <AlertCircle className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <p className="text-xs text-muted-foreground uppercase font-medium">Overdue</p>
+                            <h3 className="text-2xl font-bold">{stats.overdue}</h3>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card className="shadow-sm">
+                    <CardContent className="p-6 flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                            <Banknote className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <p className="text-xs text-muted-foreground uppercase font-medium">Total Collected</p>
+                            <h3 className="text-2xl font-bold">₦{stats.totalCollected.toLocaleString()}</h3>
+                        </div>
+                    </CardContent>
+                </Card>
+              </>
+            )}
           </div>
 
           {/* Table Section */}
@@ -396,13 +408,34 @@ export default function FeeListPage() {
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
-                                <TableRow>
-                                    <TableCell colSpan={6} className="h-24 text-center">
-                                        <div className="flex justify-center items-center">
-                                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
+                                Array.from({ length: itemsPerPage }).map((_, i) => (
+                                    <TableRow key={i}>
+                                        <TableCell className="pl-6">
+                                            <div className="flex items-center gap-3">
+                                                <Skeleton className="h-9 w-9 rounded-full" />
+                                                <div>
+                                                    <Skeleton className="h-4 w-24" />
+                                                    <Skeleton className="h-3 w-16 mt-1" />
+                                                </div>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Skeleton className="h-4 w-20" />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Skeleton className="h-4 w-16" />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Skeleton className="h-4 w-20" />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Skeleton className="h-4 w-16" />
+                                        </TableCell>
+                                        <TableCell className="text-right pr-6">
+                                            <Skeleton className="h-6 w-20 rounded-full" />
+                                        </TableCell>
+                                    </TableRow>
+                                ))
                             ) : paginatedRecords.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">

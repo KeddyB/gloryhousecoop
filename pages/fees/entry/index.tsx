@@ -35,6 +35,7 @@ import {
 } from "date-fns";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface InterestPayment {
   id: string;
@@ -297,30 +298,40 @@ export default function InterestFeeEntryPage() {
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <StatCard
-              label="Today's Collection"
-              amount={todaysCollection}
-              icon={BanknoteIcon}
-              color="text-blue-600"
-              iconBg="bg-blue-50"
-              borderColor="border-grey"
-            />
-            <StatCard
-              label="This month"
-              amount={thisMonthCollection}
-              icon={Calendar}
-              color="text-green-600"
-              iconBg="bg-green-50"
-              borderColor="border-grey"
-            />
-            <StatCard
-              label="Pending Payment"
-              amount={totalPending}
-              icon={AlertCircle}
-              color="text-orange-600"
-              iconBg="bg-orange-50"
-              borderColor="border-grey"
-            />
+            {isLoading ? (
+              <>
+                <Skeleton className="h-[120px] rounded-xl" />
+                <Skeleton className="h-[120px] rounded-xl" />
+                <Skeleton className="h-[120px] rounded-xl" />
+              </>
+            ) : (
+              <>
+                <StatCard
+                  label="Today's Collection"
+                  amount={todaysCollection}
+                  icon={BanknoteIcon}
+                  color="text-blue-600"
+                  iconBg="bg-blue-50"
+                  borderColor="border-grey"
+                />
+                <StatCard
+                  label="This month"
+                  amount={thisMonthCollection}
+                  icon={Calendar}
+                  color="text-green-600"
+                  iconBg="bg-green-50"
+                  borderColor="border-grey"
+                />
+                <StatCard
+                  label="Pending Payment"
+                  amount={totalPending}
+                  icon={AlertCircle}
+                  color="text-orange-600"
+                  iconBg="bg-orange-50"
+                  borderColor="border-grey"
+                />
+              </>
+            )}
           </div>
 
           <div className="grid grid-cols-12 gap-8">
@@ -340,8 +351,17 @@ export default function InterestFeeEntryPage() {
 
                   <div className="space-y-3">
                     {isLoading ? (
-                      <div className="flex justify-center py-10">
-                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                      <div className="space-y-3">
+                        {[...Array(3)].map((_, i) => (
+                          <div key={i} className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card">
+                            <Skeleton className="h-10 w-10 rounded-full" />
+                            <div className="flex-1 space-y-2">
+                              <Skeleton className="h-4 w-3/4" />
+                              <Skeleton className="h-3 w-1/2" />
+                            </div>
+                            <Skeleton className="h-6 w-16 rounded-full" />
+                          </div>
+                        ))}
                       </div>
                     ) : filteredLoans.length === 0 ? (
                       <p className="text-center text-sm text-muted-foreground py-10">
@@ -524,6 +544,43 @@ export default function InterestFeeEntryPage() {
                         {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Wallet className="h-4 w-4 mr-2" />}
                         Record Interest Payment
                       </Button>
+                    </div>
+                  ) : isLoading ? (
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-4 p-4 bg-background rounded-lg border border-border">
+                        <Skeleton className="h-12 w-12 rounded-full" />
+                        <div className="flex-1 space-y-2">
+                          <Skeleton className="h-4 w-3/4" />
+                          <Skeleton className="h-3 w-1/2" />
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <Skeleton className="h-4 w-24" />
+                        <div className="space-y-3">
+                           {[...Array(4)].map((_, i) => (
+                             <Skeleton key={i} className="h-12 w-full rounded-lg" />
+                           ))}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-12 w-full rounded-lg" />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-12 w-full rounded-lg" />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-28" />
+                        <Skeleton className="h-12 w-full rounded-lg" />
+                      </div>
+
+                      <Skeleton className="h-28 w-full rounded-lg" />
+                      <Skeleton className="h-12 w-full rounded-lg" />
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">

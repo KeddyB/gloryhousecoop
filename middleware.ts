@@ -3,7 +3,7 @@ import { createClient } from './utils/supabase/server'
 
 export async function middleware(request: NextRequest) {
   // Create an unmodified response
-  let response = NextResponse.next({
+  const response = NextResponse.next({
     request: {
       headers: request.headers,
     },
