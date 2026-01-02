@@ -57,7 +57,7 @@ const getUnpaidMonths = (loan: LoanWithMember) => {
      return [];
   }
 
-  let calculationLimit = addMonths(currentMonthStart, 1);
+  let calculationLimit = endDate; // Extend calculation to loan end date
   
   if (isBefore(endDate, calculationLimit)) {
      calculationLimit = endDate;
@@ -91,13 +91,45 @@ export function LoanStatusChart() {
         .select('*', { count: 'exact', head: true })
         .eq('status', 'active')
 
-      // 2. Closed: Members with completed payment (Loans closed/paid)
-      const { count: closedCount } = await supabase
+      // 2. Paid: Loans with completed payment (Loans closed/paid)
+      const { count: fullyPaidLoansCount } = await supabase
         .from('loans')
         .select('*', { count: 'exact', head: true })
         .or('state.eq.closed,state.eq.paid')
 
-      // 3. Overdue & Pending Interest: From Loans and Interest Payments
+      // 3. Repayments data (Paid, Overdue, Pending)
+      const { data: repaymentsData } = await supabase
+        .from('repayments')
+        .select('status, due_date')
+        
+      let repaymentPaidCount = 0;
+      let repaymentOverdueCount = 0
+      
+      const now = new Date()
+
+      repaymentsData?.forEach(r => {
+        if (r.status === 'paid') {
+            repaymentPaidCount++;
+        } else if (r.status === 'overdue') {
+            repaymentOverdueCount++
+        } else if (r.status === 'pending') {
+             if (r.due_date && isBefore(new Date(r.due_date), now)) {
+                 repaymentOverdueCount++
+             }
+        }
+      })
+
+      const { count: repaymentPendingCount } = await supabase
+        .from('repayments')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending')
+
+      const { count: pendingLoansCount } = await supabase
+        .from('loans')
+        .select('*', { count: 'exact', head: true })
+        .eq('state', 'pending')
+
+      // 4. Overdue & Pending Interest: From Loans and Interest Payments
       const { data: activeLoansData, error: loansError } = await supabase
         .from('loans')
         .select(`
@@ -124,13 +156,15 @@ export function LoanStatusChart() {
         // Continue with what we have if loans data fails
       }
 
+      let interestPaidCount = 0;
       let overdueInterestCount = 0;
       let pendingInterestCount = 0;
-      const now = new Date();
       const currentMonthStart = startOfMonth(now);
 
       (activeLoansData as LoanWithMember[] || []).forEach(loan => {
-        const unpaidMonths = getUnpaidMonths(loan); // This function already considers 'now' and 'currentMonthStart'
+        interestPaidCount += loan.interest_payments.length; // Count existing interest payments as paid
+
+        const unpaidMonths = getUnpaidMonths(loan);
         
         unpaidMonths.forEach(monthDate => {
           if (isBefore(monthDate, currentMonthStart)) {
@@ -141,11 +175,14 @@ export function LoanStatusChart() {
         });
       });
 
+      const totalOverdueCount = repaymentOverdueCount + overdueInterestCount;
+      const totalPendingCount = (repaymentPendingCount || 0);
+
       setData([
         { name: "Active", value: activeCount || 0, color: "#7d6b2e" },
-        { name: "Overdue Interest", value: overdueInterestCount, color: "#dc2626" },
-        { name: "Pending Interest", value: pendingInterestCount, color: "#3b82f6" },
-        { name: "Closed", value: closedCount || 0, color: "#7c3aed" },
+        { name: "Paid", value: fullyPaidLoansCount || 0, color: "#22c55e" },
+        { name: "Overdue", value: totalOverdueCount, color: "#dc2626" },
+        { name: "Pending", value: totalPendingCount, color: "#3b82f6" },
       ])
       setIsLoading(false)
     }
