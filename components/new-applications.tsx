@@ -50,7 +50,7 @@ export function NewApplications() {
           
           return {
             id: loan.id,
-            name: loan.member?.[0]?.full_name || loan.member?.[0]?.name || "Unknown Member",
+            name: loan.member?.full_name || loan.member?.name || "Unknown Member",
             date: loan.created_at,
             amount: loan.loan_amount,
             isDisbursed: hasDisbursementRecord || isStateDisbursed

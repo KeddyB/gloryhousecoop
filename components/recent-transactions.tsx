@@ -110,7 +110,7 @@ export function RecentTransactions() {
     const disbursementTransactions: Transaction[] = (disbursements || []).map(d => ({
       id: d.id,
       title: "Loan Disbursement",
-      name: (d.loan as any)?.member?.[0]?.full_name || (d.loan as any)?.member?.[0]?.name || "Unknown Member",
+      name: (d.loan as any)?.member?.full_name || (d.loan as any)?.member?.name || "Unknown Member",
       amount: d.disbursement_amount,
       status: "Completed",
       date: d.created_at,
@@ -121,7 +121,7 @@ export function RecentTransactions() {
     const repaymentTransactions: Transaction[] = (repayments || []).map(r => ({
       id: r.id,
       title: "Loan Repayment",
-      name: (r.loan as any)?.member?.[0]?.full_name || (r.loan as any)?.member?.[0]?.name || "Unknown Member",
+      name: (r.loan as any)?.member?.full_name || (r.loan as any)?.member?.name || "Unknown Member",
       amount: r.amount_paid,
       status: "Completed",
       // Use updated_at as primary date source
@@ -133,7 +133,7 @@ export function RecentTransactions() {
     const interestTransactions: Transaction[] = (interestPayments || []).map(i => ({
       id: i.id,
       title: "Interest Payment",
-      name: (i.loan as any)?.member?.[0]?.full_name || (i.loan as any)?.member?.[0]?.name || "Unknown Member",
+      name: (i.loan as any)?.member?.full_name || (i.loan as any)?.member?.name || "Unknown Member",
       amount: i.amount_paid,
       status: "Completed",
       date: i.created_at || new Date().toISOString(),
