@@ -38,6 +38,7 @@ interface FeeRecord {
   method?: string;
   status: "active" | "pending" | "overdue";
   loan_id: string;
+  created_at?: string;
 }
 
 export default function FeeListPage() {
@@ -75,6 +76,7 @@ export default function FeeListPage() {
             payment_for_month,
             payment_date,
             payment_method,
+            created_at,
             loan:loans (
                 id,
                 loan_amount,
@@ -89,7 +91,7 @@ export default function FeeListPage() {
                 )
             )
         `)
-        .order('payment_date', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (paymentsResult.error) throw paymentsResult.error;
       setPayments(paymentsResult.data || []);
@@ -164,7 +166,8 @@ export default function FeeListPage() {
             pay_date: p.payment_date,
             method: p.payment_method,
             status: "active",
-            loan_id: p.loan.id
+            loan_id: p.loan.id,
+            created_at: p.created_at
         };
         
         records.push(record);
@@ -230,7 +233,12 @@ export default function FeeListPage() {
     });
 
     // Sort by date descending
-    return records.sort((a, b) => b.month.getTime() - a.month.getTime());
+    // Prioritize created_at if available (for paid records), otherwise use month (for pending/overdue)
+    return records.sort((a, b) => {
+        const timeA = a.created_at ? new Date(a.created_at).getTime() : a.month.getTime();
+        const timeB = b.created_at ? new Date(b.created_at).getTime() : b.month.getTime();
+        return timeB - timeA;
+    });
   }, [payments, activeLoans]);
 
   const filteredRecords = useMemo(() => {

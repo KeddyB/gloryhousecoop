@@ -24,7 +24,7 @@ export function RecentTransactions() {
     const fetchTransactions = async () => {
       const supabase = createClient()
       
-      // Fetch disbursements using the same structure as the disbursement page
+      // Fetch disbursements
       const { data: disbursements, error: disbursementError } = await supabase
         .from('disbursements')
         .select(`
@@ -52,8 +52,22 @@ export function RecentTransactions() {
         .order('paid_at', { ascending: false })
         .limit(6)
 
+      // Fetch interest payments
+      const { data: interestPayments, error: interestError } = await supabase
+        .from('interest_payments')
+        .select(`
+            *,
+            loan:loans (
+                *,
+                member:members (*)
+            )
+        `)
+        .order('created_at', { ascending: false })
+        .limit(6)
+
       if (disbursementError) console.error("Error fetching disbursements:", disbursementError)
       if (repaymentError) console.error("Error fetching repayments:", repaymentError)
+      if (interestError) console.error("Error fetching interest payments:", interestError)
 
       // Process and combine
       const disbursementTransactions: Transaction[] = (disbursements || []).map(d => ({
@@ -76,8 +90,18 @@ export function RecentTransactions() {
         type: 'repayment'
       }))
 
+      const interestTransactions: Transaction[] = (interestPayments || []).map(i => ({
+        id: i.id,
+        title: "Interest Payment",
+        name: i.loan?.member?.full_name || i.loan?.member?.name || "Unknown Member",
+        amount: i.amount_paid,
+        status: "Completed",
+        date: i.created_at || new Date().toISOString(),
+        type: 'interest'
+      }))
+
       // Combine and sort by date descending
-      const allTransactions = [...disbursementTransactions, ...repaymentTransactions]
+      const allTransactions = [...disbursementTransactions, ...repaymentTransactions, ...interestTransactions]
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 6) // Take top 6
 
