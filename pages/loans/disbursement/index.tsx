@@ -37,7 +37,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { AmountInput } from "@/components/ui/amount-input";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrencyShort } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -211,30 +211,30 @@ export default function DisbursementPage() {
   const totalHistoryPages = Math.ceil(totalHistoryCount / HISTORY_PER_PAGE);
 
   return (
-    <div className="flex h-screen bg-gray-50/50">
+    <div className="flex h-screen bg-background">
       <Sidebar />
       <div className="flex-1 overflow-auto p-8">
         <div className="w-full mx-auto space-y-8">
           {/* Header */}
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 uppercase">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">
               Loan Disbursement
             </h1>
-            <p className="text-sm text-gray-500">
+            <p className="text-muted-foreground text-base">
               Manage approved loan disbursements and payments
             </p>
           </div>
 
           {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="border-none shadow-sm rounded-2xl overflow-hidden">
+            <Card className="shadow-sm rounded-2xl overflow-hidden">
               <CardContent className="p-6 flex justify-between items-center">
                 <div>
-                  <p className="text-xs uppercase font-bold text-gray-400 mb-1 tracking-wider">
+                  <p className="text-sm font-medium text-muted-foreground mb-1">
                     Total Pending Amount
                   </p>
-                  <h3 className="text-2xl font-bold text-gray-900">
-                    ₦{totalAmountPending.toLocaleString()}
+                  <h3 className="text-3xl font-bold text-foreground">
+                    ₦{formatCurrencyShort(totalAmountPending)}
                   </h3>
                 </div>
                 <div className="h-10 w-10 bg-green-50 rounded-xl flex items-center justify-center border border-green-100">
@@ -243,14 +243,14 @@ export default function DisbursementPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-sm rounded-2xl overflow-hidden">
+            <Card className="shadow-sm rounded-2xl overflow-hidden">
               <CardContent className="p-6 flex justify-between items-center">
                 <div>
-                  <p className="text-xs uppercase font-bold text-gray-400 mb-1 tracking-wider">
+                  <p className="text-sm font-medium text-muted-foreground mb-1">
                     Today&apos;s Disbursed
                   </p>
-                  <h3 className="text-2xl font-bold text-gray-900">
-                    ₦{totalDisbursedToday.toLocaleString()}
+                  <h3 className="text-3xl font-bold text-foreground">
+                    ₦{formatCurrencyShort(totalDisbursedToday)}
                   </h3>
                 </div>
                 <div className="h-10 w-10 bg-purple-50 rounded-xl flex items-center justify-center border border-purple-100">
@@ -261,9 +261,9 @@ export default function DisbursementPage() {
           </div>
 
           {/* Table: Loans Ready for Disbursement */}
-          <Card className="border-none shadow-sm rounded-2xl overflow-hidden border border-gray-100">
+          <Card className="shadow-sm rounded-2xl overflow-hidden border border-gray-100">
             <CardHeader className="flex flex-row items-center justify-between pb-6 space-y-0">
-              <CardTitle className="text-sm font-bold uppercase tracking-tight text-gray-800">
+              <CardTitle className="text-lg font-semibold tracking-tight text-foreground">
                 Loans Ready for Disbursement
               </CardTitle>
               <div className="relative w-64">
@@ -279,23 +279,23 @@ export default function DisbursementPage() {
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-gray-50/50 hover:bg-gray-50/50 border-gray-100">
-                    <TableHead className="text-[10px] font-bold uppercase text-gray-500 py-4 px-6">
+                  <TableRow className="hover:bg-transparent border-[#EEEEEE]">
+                    <TableHead className="h-14 px-8 text-muted-foreground font-semibold text-sm">
                       Member Details
                     </TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase text-gray-500 text-center">
+                    <TableHead className="h-14 font-semibold text-muted-foreground text-sm text-center">
                       Amount (₦)
                     </TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase text-gray-500 text-center">
+                    <TableHead className="h-14 font-semibold text-muted-foreground text-sm text-center">
                       Tenure
                     </TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase text-gray-500 text-center">
+                    <TableHead className="h-14 font-semibold text-muted-foreground text-sm text-center">
                       Interest
                     </TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase text-gray-500 text-center">
+                    <TableHead className="h-14 font-semibold text-muted-foreground text-sm text-center">
                       Applied Date
                     </TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase text-gray-500 text-right px-6">
+                    <TableHead className="h-14 px-8 font-semibold text-muted-foreground text-sm text-right">
                       Actions
                     </TableHead>
                   </TableRow>
@@ -322,41 +322,41 @@ export default function DisbursementPage() {
                         key={loan.id}
                         className="border-gray-50 hover:bg-gray-50/30 transition-colors"
                       >
-                        <TableCell className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-8 w-8 bg-gray-100 border border-gray-200">
-                              <AvatarFallback className="text-[10px] font-bold">
+                        <TableCell className="px-8 py-6">
+                          <div className="flex items-center gap-4">
+                            <Avatar className="h-11 w-11 bg-gray-100">
+                              <AvatarFallback className="text-sm font-bold text-muted-foreground">
                                 {loan.member?.name?.charAt(0)}
                               </AvatarFallback>
                             </Avatar>
                             <div>
-                              <p className="font-bold text-[11px] text-gray-900 leading-tight">
+                              <p className="font-semibold text-foreground text-[15px] leading-tight">
                                 {loan.member?.name}
                               </p>
-                              <p className="text-[10px] text-gray-400 font-mono mt-0.5 tracking-tighter">
+                              <p className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">
                                 {loan.member?.member_id}
                               </p>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="text-center font-bold text-[11px] text-gray-700">
+                        <TableCell className="text-center font-semibold text-foreground text-[15px]">
                           {loan.loan_amount.toLocaleString()}
                         </TableCell>
-                        <TableCell className="text-center text-[11px] font-medium text-gray-500">
+                        <TableCell className="text-center text-[15px] font-semibold text-foreground">
                           {loan.tenure} months
                         </TableCell>
-                        <TableCell className="text-center text-[11px] font-medium text-gray-500">
+                        <TableCell className="text-center text-[15px] font-semibold text-foreground">
                           {loan.interest_rate}%
                         </TableCell>
-                        <TableCell className="text-center text-[10px] font-medium text-gray-400">
+                        <TableCell className="text-center text-sm font-semibold text-foreground">
                           {loan.created_at
                             ? format(new Date(loan.created_at), "dd-MM-yyyy")
                             : "N/A"}
                         </TableCell>
-                        <TableCell className="text-right px-6">
+                        <TableCell className="text-right px-8">
                           <Button
                             size="sm"
-                            className="bg-black hover:bg-gray-800 text-[10px] h-8 px-4 font-bold rounded-lg gap-1.5 transition-all active:scale-95"
+                            className="bg-black hover:bg-gray-800 text-xs h-9 px-4 font-bold rounded-lg gap-1.5 transition-all active:scale-95"
                             onClick={() => handleDisburseClick(loan)}
                           >
                             <Banknote className="h-3 w-3" />
@@ -372,29 +372,29 @@ export default function DisbursementPage() {
           </Card>
 
           {/* Table: Disbursed History */}
-          <Card className="border-none shadow-sm rounded-2xl overflow-hidden border border-gray-100">
+          <Card className="shadow-sm rounded-2xl overflow-hidden border border-gray-100">
             <CardHeader>
-              <CardTitle className="text-sm font-bold uppercase tracking-tight text-gray-800">
+              <CardTitle className="text-lg font-semibold tracking-tight text-foreground">
                 Disbursed History
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-gray-50/50 hover:bg-gray-50/50 border-gray-100">
-                    <TableHead className="text-[10px] font-bold uppercase text-gray-500 py-4 px-6">
+                  <TableRow className="hover:bg-transparent border-[#EEEEEE]">
+                    <TableHead className="h-14 px-8 text-muted-foreground font-semibold text-sm">
                       Member
                     </TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase text-gray-500 text-center">
+                    <TableHead className="h-14 font-semibold text-muted-foreground text-sm text-center">
                       Amount (₦)
                     </TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase text-gray-500 text-center">
+                    <TableHead className="h-14 font-semibold text-muted-foreground text-sm text-center">
                       Method
                     </TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase text-gray-500 text-center">
+                    <TableHead className="h-14 font-semibold text-muted-foreground text-sm text-center">
                       Date
                     </TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase text-gray-500 text-right px-6">
+                    <TableHead className="h-14 px-8 font-semibold text-muted-foreground text-sm text-right">
                       Disbursed By
                     </TableHead>
                   </TableRow>
@@ -421,23 +421,23 @@ export default function DisbursementPage() {
                         key={history.id}
                         className="border-gray-50 hover:bg-gray-50/30 transition-colors"
                       >
-                        <TableCell className="px-6 py-4 font-bold text-[11px] text-gray-900">
+                        <TableCell className="px-8 py-6 font-semibold text-foreground text-[15px]">
                           {history.loan?.member?.name}
                         </TableCell>
-                        <TableCell className="text-center font-bold text-[11px] text-gray-700">
+                        <TableCell className="text-center font-semibold text-foreground text-[15px]">
                           {history.disbursement_amount.toLocaleString()}
                         </TableCell>
                         <TableCell className="text-center">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-tighter border border-gray-100 text-gray-500 bg-gray-50/50">
+                          <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider border border-gray-100 text-muted-foreground bg-gray-50">
                             {history.method}
                           </span>
                         </TableCell>
-                        <TableCell className="text-center text-[10px] font-medium text-gray-400">
+                        <TableCell className="text-center text-sm font-semibold text-foreground">
                           {history.created_at
                             ? format(new Date(history.created_at), "dd-MM-yyyy")
                             : "N/A"}
                         </TableCell>
-                        <TableCell className="text-right px-6 text-[10px] font-bold text-gray-500 uppercase tracking-tighter">
+                        <TableCell className="text-right px-8 text-xs font-bold text-muted-foreground uppercase tracking-wider">
                           {history.disbursed_by_name || history.disbursed_by}
                         </TableCell>
                       </TableRow>
@@ -449,8 +449,15 @@ export default function DisbursementPage() {
               {/* Pagination Controls */}
               {totalHistoryPages > 1 && (
                 <div className="flex items-center justify-between px-6 py-4 border-t border-gray-50">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase">
-                    Page {historyPage} of {totalHistoryPages}
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Page{" "}
+                    <span className="text-foreground font-bold">
+                      {historyPage}
+                    </span>{" "}
+                    of{" "}
+                    <span className="text-foreground font-bold">
+                      {totalHistoryPages}
+                    </span>
                   </p>
                   <div className="flex gap-2">
                     <Button
