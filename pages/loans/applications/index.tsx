@@ -254,10 +254,7 @@ function LoanApplicationForm() {
         }
         break;
       case 3:
-        if (!formData.thirdPartyName || !formData.thirdPartyPhone) {
-          toast.error("Please fill in all third party details.");
-          return false;
-        }
+        // Third party details are optional now
         break;
       default:
         break;
@@ -323,7 +320,8 @@ function LoanApplicationForm() {
           !!formData.paymentInterval
         );
       case 3:
-        return !!formData.thirdPartyName && !!formData.thirdPartyPhone;
+        // Optional
+        return true;
       case 4:
         return !!formData.collateralDocsUrl && !!formData.loanAgreementUrl;
       default:
@@ -711,7 +709,7 @@ function LoanApplicationForm() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">
-                        Third Party Borrower Name *
+                        Third Party Borrower Name (Optional)
                       </label>
                       <Input
                         name="thirdPartyName"
@@ -723,7 +721,7 @@ function LoanApplicationForm() {
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">
-                        Phone Number *
+                        Phone Number (Optional)
                       </label>
                       <Input
                         name="thirdPartyPhone"

@@ -8,6 +8,27 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -42,6 +63,8 @@ import {
   Search,
   Download,
   Eye,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -58,19 +81,83 @@ import {
 export default function MemberProfile() {
   const router = useRouter();
   const { id } = router.query;
+  const memberId = Array.isArray(id) ? id[0] : id;
+  
   const [member, setMember] = useState<Member | null>(null);
   const [loading, setLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const supabase = createClient();
 
+  const [notes, setNotes] = useState<any[]>([]);
+  const [newNote, setNewNote] = useState("");
+  const [noteDialogOpen, setNoteDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
+  const [isDeletingNote, setIsDeletingNote] = useState(false);
+
+  async function handleNoteSubmit() {
+    if (!newNote.trim() || !memberId) return;
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      alert("You must be logged in to add a note.");
+      return;
+    }
+
+    const { error } = await supabase.from("member_notes").insert([
+      {
+        member_id: memberId,
+        note: newNote,
+        created_by_name: user.user_metadata.name,
+      },
+    ]);
+
+    if (error) {
+      console.error("Error adding note:", error);
+      alert("Could not add note.");
+    } else {
+      setNewNote("");
+      setNoteDialogOpen(false);
+      fetchMemberData(); // Refresh notes
+    }
+  }
+
+  async function handleDeleteNote(noteId: string) {
+    setIsDeletingNote(true);
+    try {
+      const response = await fetch("/api/delete-note", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ note_id: noteId }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete note");
+      }
+
+      fetchMemberData(); // Refresh notes
+    } catch (error) {
+      console.error("Error deleting note:", error);
+      alert("Could not delete note.");
+    } finally {
+      setNoteToDelete(null);
+      setDeleteDialogOpen(false);
+      setIsDeletingNote(false);
+    }
+  }
+
   async function fetchMember() {
-    if (!id) return;
+    if (!memberId) return;
 
     try {
       const { data, error } = await supabase
         .from("members")
         .select("*")
-        .eq("member_id", id)
+        .eq("member_id", memberId)
         .single();
 
       if (error) {
@@ -80,6 +167,8 @@ export default function MemberProfile() {
       }
     } catch (error) {
       console.error("Unexpected error:", error);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -90,16 +179,20 @@ export default function MemberProfile() {
   const [activeLoans, setActiveLoans] = useState<any[]>([]);
   const [currentBalance, setCurrentBalance] = useState<number>(0);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [allTransactions, setAllTransactions] = useState<any[]>([]);
+  const [interestHistory, setInterestHistory] = useState<any[]>([]);
+  const [loanHistory, setLoanHistory] = useState<any[]>([]);
+  const [loanDocuments, setLoanDocuments] = useState<any[]>([]);
 
   async function fetchMemberData() {
-    if (!id) return;
+    if (!memberId) return;
 
     try {
       // Fetch Active Loans (plural)
       const { data: loansData, error: loansError } = await supabase
         .from("loans")
         .select("*, disbursements(created_at), interest_payments(payment_for_month, amount_paid), repayments(amount_paid)")
-        .eq("member_id", id)
+        .eq("member_id", memberId)
         .or("state.eq.active,state.eq.disbursed");
 
       if (loansError) {
@@ -187,16 +280,18 @@ export default function MemberProfile() {
       const { data: allLoansData, error: allLoansError } = await supabase
         .from("loans")
         .select(`
-            id,
-            interest_payments(id, amount_paid, payment_date, created_at),
-            repayments(id, amount_paid, paid_at, created_at),
-            disbursements(id, disbursement_amount, created_at)
+            *,
+            interest_payments(id, amount_paid, payment_date, created_at, payment_for_month, payment_method, notes),
+            repayments(id, amount_paid, paid_at, created_at, updated_at, notes),
+            disbursements(id, disbursement_amount, created_at, notes)
         `)
-        .eq("member_id", id);
+        .eq("member_id", memberId);
 
       if (allLoansError) {
          console.error("Error fetching all loans data:", allLoansError);
       } else if (allLoansData) {
+         setLoanHistory(allLoansData);
+
          // 1. Calculate Total Interest Paid
          const totalPaid = allLoansData.reduce((sum, loan: any) => {
              const loanTotal = loan.interest_payments ? loan.interest_payments.reduce((lSum: number, p: any) => lSum + p.amount_paid, 0) : 0;
@@ -206,17 +301,30 @@ export default function MemberProfile() {
 
          // 2. Build Recent Activity
          let activities: any[] = [];
+         let history: any[] = [];
          
          allLoansData.forEach((loan: any) => {
              // Interest
              if (loan.interest_payments) {
                  loan.interest_payments.forEach((p: any) => {
+                     // Add to recent activity
                      activities.push({
                          id: `int-${p.id}`,
                          title: "Interest Payment",
                          date: p.payment_date || p.created_at,
+                         created_at: p.created_at,
                          amount: p.amount_paid,
                          type: "success" // Money IN
+                     });
+
+                     // Add to interest history
+                     history.push({
+                         month: p.payment_for_month ? format(new Date(p.payment_for_month), "MMMM, yyyy") : "Unknown",
+                         amount: `N${(p.amount_paid || 0).toLocaleString()}`,
+                         date: format(new Date(p.payment_date || p.created_at), "dd-MM-yyyy"),
+                         method: p.payment_method || "Bank Transfer",
+                         status: "paid",
+                         rawDate: new Date(p.payment_date || p.created_at)
                      });
                  });
              }
@@ -226,7 +334,8 @@ export default function MemberProfile() {
                      activities.push({
                          id: `rep-${r.id}`,
                          title: "Loan Repayment",
-                         date: r.paid_at || r.created_at,
+                         date: r.updated_at || r.paid_at || r.created_at,
+                         created_at: r.updated_at || r.paid_at || r.created_at,
                          amount: r.amount_paid,
                          type: "success" // Money IN
                      });
@@ -239,6 +348,7 @@ export default function MemberProfile() {
                          id: `dis-${d.id}`,
                          title: "Loan Disbursement",
                          date: d.created_at,
+                         created_at: d.created_at,
                          amount: d.disbursement_amount,
                          type: "danger" // Money OUT
                      });
@@ -246,11 +356,105 @@ export default function MemberProfile() {
              }
          });
          
-         // Sort by date desc
-         activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+         // Filter out zero amount transactions
+         activities = activities.filter(a => a.amount > 0);
+
+         // Sort by created_at desc (latest first)
+         activities.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
          
+         setAllTransactions(activities);
          // Take top 4
          setRecentActivity(activities.slice(0, 4));
+
+         // Sort interest history by date desc
+         history.sort((a, b) => b.rawDate.getTime() - a.rawDate.getTime());
+         setInterestHistory(history);
+
+        const documents = allLoansData.flatMap((loan: any) => {
+          const docs = [];
+          if (loan.collateral_docs_url) {
+            docs.push({
+              name: "Collateral Document",
+              url: loan.collateral_docs_url,
+              loanId: loan.id,
+              createdAt: loan.created_at
+            });
+          }
+          if (loan.loan_agreement_url) {
+            docs.push({
+              name: "Loan Agreement",
+              url: loan.loan_agreement_url,
+              loanId: loan.id,
+              createdAt: loan.created_at
+            });
+          }
+          return docs;
+        });
+        setLoanDocuments(documents);
+
+        // Fetch notes
+        const { data: memberNotes, error: notesError } = await supabase
+          .from("member_notes")
+          .select("*")
+          .eq("member_id", memberId);
+
+        if (notesError) {
+          console.error("Error fetching member notes:", notesError);
+        }
+
+        let allNotes: any[] = [];
+        if (memberNotes) {
+          allNotes = memberNotes.map((n) => ({
+            ...n,
+            source: "member_notes",
+            date: n.created_at,
+          }));
+        }
+
+        allLoansData.forEach((loan: any) => {
+          if (loan.disbursements) {
+            loan.disbursements.forEach((d: any) => {
+              if (d.notes)
+                allNotes.push({
+                  id: `dis-${d.id}`,
+                  note: d.notes,
+                  date: d.created_at,
+                  created_by: { raw_user_meta_data: { name: "System" } },
+                  source: "disbursement",
+                });
+            });
+          }
+          if (loan.repayments) {
+            loan.repayments.forEach((r: any) => {
+              if (r.notes)
+                allNotes.push({
+                  id: `rep-${r.id}`,
+                  note: r.notes,
+                  date: r.updated_at,
+                  created_by: { raw_user_meta_data: { name: "System" } },
+                  source: "repayment",
+                });
+            });
+          }
+          if (loan.interest_payments) {
+            loan.interest_payments.forEach((p: any) => {
+              if (p.notes)
+                allNotes.push({
+                  id: `int-${p.id}`,
+                  note: p.notes,
+                  date: p.created_at,
+                  created_by: { raw_user_meta_data: { name: "System" } },
+                  source: "interest_payment",
+                });
+            });
+          }
+        });
+
+        allNotes.sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        );
+        console.log("All Notes:", allNotes);
+        setNotes(allNotes);
       }
 
     } catch (error) {
@@ -259,14 +463,9 @@ export default function MemberProfile() {
   }
 
   useEffect(() => {
-    const loadData = async () => {
-      await Promise.all([fetchMember(), fetchMemberData()]);
-      setLoading(false);
-    };
-    if (id) {
-      loadData();
-    }
-  }, [id]);
+    fetchMember();
+    fetchMemberData();
+  }, [memberId]);
 
   if (loading) {
     return (
@@ -450,7 +649,7 @@ export default function MemberProfile() {
                   <p className="text-xs text-muted-foreground">
                     Total Interest Paid
                   </p>
-                  <p className="text-xl font-bold">N{totalInterestPaid}</p>
+                  <p className="text-xl font-bold">N{totalInterestPaid.toLocaleString()}</p>
                 </div>
               </CardContent>
             </Card>
@@ -463,7 +662,7 @@ export default function MemberProfile() {
                   <p className="text-xs text-muted-foreground">
                     Pending Interest
                   </p>
-                  <p className="text-xl font-bold">N{pendingInterest}</p>
+                  <p className="text-xl font-bold">N{pendingInterest.toLocaleString()}</p>
                 </div>
               </CardContent>
             </Card>
@@ -474,7 +673,7 @@ export default function MemberProfile() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Active Loan</p>
-                  <p className="text-xl font-bold">N{activeLoan}</p>
+                  <p className="text-xl font-bold">N{activeLoan.toLocaleString()}</p>
                 </div>
               </CardContent>
             </Card>
@@ -487,7 +686,7 @@ export default function MemberProfile() {
                   <p className="text-xs text-muted-foreground">
                     Current Balance
                   </p>
-                  <p className="text-xl font-bold">N{currentBalance}</p>
+                  <p className="text-xl font-bold">N{currentBalance.toLocaleString()}</p>
                 </div>
               </CardContent>
             </Card>
@@ -827,43 +1026,8 @@ export default function MemberProfile() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {[
-                        {
-                          month: "April, 2024",
-                          amount: "N30,000",
-                          date: "Not Paid",
-                          method: "-",
-                          status: "overdue",
-                        },
-                        {
-                          month: "March, 2024",
-                          amount: "N50,000",
-                          date: "17-03-2025",
-                          method: "Cash",
-                          status: "active",
-                        },
-                        {
-                          month: "February, 2024",
-                          amount: "N50,000",
-                          date: "16-02-2025",
-                          method: "Bank Transfer",
-                          status: "active",
-                        },
-                        {
-                          month: "January, 2024",
-                          amount: "N50,000",
-                          date: "15-1-2024",
-                          method: "Cash",
-                          status: "active",
-                        },
-                        {
-                          month: "December, 2023",
-                          amount: "N50,000",
-                          date: "17-12-2023",
-                          method: "Mobile Transfer",
-                          status: "active",
-                        },
-                      ].map((item, index) => (
+                      {interestHistory.length > 0 ? (
+                        interestHistory.map((item, index) => (
                         <TableRow key={index}>
                           <TableCell>{item.month}</TableCell>
                           <TableCell>{item.amount}</TableCell>
@@ -874,14 +1038,23 @@ export default function MemberProfile() {
                               className={`rounded-full px-3 font-normal capitalize ${
                                 item.status === "overdue"
                                   ? "bg-red-600 hover:bg-red-700"
-                                  : "bg-black hover:bg-black"
+                                  : item.status === "active" || item.status === "paid"
+                                  ? "bg-black hover:bg-black"
+                                  : "bg-gray-200 text-gray-700"
                               }`}
                             >
-                              {item.status}
+                              {item.status === "active" ? "Paid" : item.status} 
                             </Badge>
                           </TableCell>
                         </TableRow>
-                      ))}
+                      ))
+                      ) : (
+                        <TableRow>
+                            <TableCell colSpan={5} className="text-center text-muted-foreground py-6">
+                                No interest history found.
+                            </TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 </CardContent>
@@ -892,7 +1065,12 @@ export default function MemberProfile() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-base">Loan History</CardTitle>
-                  <Button variant="outline" size="sm" className="h-8">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-8"
+                    onClick={() => router.push("/loans/applications/new")}
+                  >
                     <Plus className="h-3.5 w-3.5 mr-1.5" /> New Loan
                   </Button>
                 </CardHeader>
@@ -910,24 +1088,32 @@ export default function MemberProfile() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      <TableRow>
-                        <TableCell className="font-medium">Active</TableCell>
-                        <TableCell>N500,000</TableCell>
-                        <TableCell>17-12-2023</TableCell>
-                        <TableCell>12 months</TableCell>
-                        <TableCell>10%</TableCell>
-                        <TableCell>100,000</TableCell>
-                        <TableCell>400,000</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell className="font-medium">Inactive</TableCell>
-                        <TableCell>N500,000</TableCell>
-                        <TableCell>05-03-2021</TableCell>
-                        <TableCell>18 months</TableCell>
-                        <TableCell>10%</TableCell>
-                        <TableCell>Paid</TableCell>
-                        <TableCell>-</TableCell>
-                      </TableRow>
+                      {loanHistory.length > 0 ? (
+                        loanHistory.map((loan) => {
+                          const amount = loan.loan_amount ?? loan.amount ?? 0;
+                          const disbursedDate = loan.disbursements?.[0]?.created_at || loan.created_at;
+                          const paid = loan.repayments?.reduce((sum: number, r: any) => sum + (r.amount_paid || 0), 0) || 0;
+                          const remaining = Math.max(0, amount - paid);
+                          
+                          return (
+                            <TableRow key={loan.id}>
+                              <TableCell className="font-medium capitalize">{loan.state || "Unknown"}</TableCell>
+                              <TableCell>N{amount.toLocaleString()}</TableCell>
+                              <TableCell>{disbursedDate ? format(new Date(disbursedDate), "dd-MM-yyyy") : "N/A"}</TableCell>
+                              <TableCell>{loan.tenure} months</TableCell>
+                              <TableCell>{loan.interest_rate}%</TableCell>
+                              <TableCell>N{paid.toLocaleString()}</TableCell>
+                              <TableCell>N{remaining.toLocaleString()}</TableCell>
+                            </TableRow>
+                          );
+                        })
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
+                            No loan history found.
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 </CardContent>
@@ -961,53 +1147,67 @@ export default function MemberProfile() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <Table>
+                  <Table className="table-fixed">
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Balance</TableHead>
+                        <TableHead className="w-[25%]">Type</TableHead>
+                        <TableHead className="w-[40%]">Description</TableHead>
+                        <TableHead className="w-[15%] text-right">
+                          Amount
+                        </TableHead>
+                        <TableHead className="w-[20%] text-right">
+                          Date
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {[
-                        {
-                          type: "Fee Payment",
-                          desc: "Monthly fee for March 2024",
-                          amount: "N30,000",
-                          balance: "N300,000",
-                        },
-                        {
-                          type: "Loan Repayment",
-                          desc: "Quarterly Installment",
-                          amount: "N200,000",
-                          balance: "N200,000",
-                        },
-                        {
-                          type: "Fee Payment",
-                          desc: "Monthly fee for February 2024",
-                          amount: "N50,000",
-                          balance: "N500,000",
-                        },
-                        {
-                          type: "Fee Payment",
-                          desc: "Monthly fee for January 2024",
-                          amount: "N50,000",
-                          balance: "N500,000",
-                        },
-                      ].map((item, index) => (
-                        <TableRow key={index}>
-                          <TableCell className="font-medium">
-                            {item.type}
+                      {allTransactions.length > 0 ? (
+                        allTransactions.map((item, index) => (
+                          <TableRow
+                            key={item.id}
+                            className={index % 2 === 0 ? "bg-muted/25" : ""}
+                          >
+                            <TableCell className="font-medium">
+                              <Badge
+                                variant="outline"
+                                className="font-normal capitalize"
+                              >
+                                {item.id.startsWith("int-")
+                                  ? "Interest"
+                                  : item.id.startsWith("rep-")
+                                  ? "Repayment"
+                                  : "Disbursement"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground truncate">
+                              {item.title}
+                            </TableCell>
+                            <TableCell
+                              className={`text-sm font-medium text-right ${
+                                item.type === "success"
+                                  ? "text-green-600"
+                                  : "text-red-600"
+                              }`}
+                            >
+                              {`${
+                                item.type === "success" ? "+" : "-"
+                              }N${item.amount.toLocaleString()}`}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground text-right">
+                              {format(new Date(item.date), "dd-MM-yyyy")}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell
+                            colSpan={4}
+                            className="text-center text-muted-foreground py-10"
+                          >
+                            No transactions found.
                           </TableCell>
-                          <TableCell>{item.desc}</TableCell>
-                          <TableCell>{item.amount}</TableCell>
-                          <TableCell>Date</TableCell>
-                          <TableCell>{item.balance}</TableCell>
                         </TableRow>
-                      ))}
+                      )}
                     </TableBody>
                   </Table>
                 </CardContent>
@@ -1017,101 +1217,160 @@ export default function MemberProfile() {
             <TabsContent value="documents" className="space-y-6">
               <div className="flex justify-between items-center">
                 <h2 className="text-lg font-medium">Documents</h2>
-                <Button variant="outline" size="sm" className="h-9">
-                  <Plus className="h-4 w-4 mr-2" /> Upload Document
-                </Button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
-                  <CardContent className="p-6 flex items-start gap-4">
-                    <div className="h-10 w-10 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
-                      <FileText className="h-5 w-5 text-red-600" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-medium">Loan Agreement</h3>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        PDF • 2.5 MB
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Uploaded: 2023-01-15
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-6 flex items-start gap-4">
-                    <div className="h-10 w-10 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
-                      <FileText className="h-5 w-5 text-red-600" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-medium">Collateral Document</h3>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        PDF • 3.1 MB
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Uploaded: 2023-01-20
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                {loanDocuments.length > 0 ? (
+                  loanDocuments.map((doc, index) => (
+                    <Card key={index}>
+                      <CardContent className="p-6 flex items-start gap-4">
+                        <div className="h-10 w-10 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+                          <FileText className="h-5 w-5 text-red-600" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-medium">{doc.name}</h3>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Uploaded:{" "}
+                            {new Date(doc.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => window.open(doc.url, "_blank")}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => window.open(doc.url, "_blank")}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <div className="col-span-2 text-center text-muted-foreground py-10">
+                    No documents found.
+                  </div>
+                )}
               </div>
             </TabsContent>
 
             <TabsContent value="notes" className="space-y-6">
               <div className="flex justify-between items-center">
                 <h2 className="text-lg font-medium">Member Notes</h2>
-                <Button variant="outline" size="sm" className="h-9">
-                  <Plus className="h-4 w-4 mr-2" /> Add Notes
-                </Button>
+                <Dialog
+                  open={noteDialogOpen}
+                  onOpenChange={setNoteDialogOpen}
+                >
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-9">
+                      <Plus className="h-4 w-4 mr-2" /> Add Note
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add a new note</DialogTitle>
+                      <DialogDescription>
+                        This note will be added to the member's profile.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <Textarea
+                      placeholder="Type your note here."
+                      value={newNote}
+                      onChange={(e) => setNewNote(e.target.value)}
+                    />
+                    <DialogFooter>
+                      <Button
+                        onClick={handleNoteSubmit}
+                        disabled={!newNote.trim()}
+                      >
+                        Save Note
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
               <div className="space-y-4">
-                {[
-                  {
-                    date: "2024-01-15",
-                    user: "Admin User 1",
-                    note: "Member requested loan extension. Approved for 2 months.",
-                  },
-                  {
-                    date: "2024-01-15",
-                    user: "Admin User 2",
-                    note: "Payment received through mobile banking. Verified.",
-                  },
-                  {
-                    date: "2024-01-15",
-                    user: "Admin User 1",
-                    note: "Interest Fees for last month overdue for 5days..Send Notice for collection",
-                  },
-                ].map((note, i) => (
-                  <Card key={i}>
-                    <CardContent className="p-6">
-                      <div className="space-y-2">
-                        <div className="text-xs text-muted-foreground">
-                          {note.date}
+                {notes.length > 0 ? (
+                  notes.map((note, i) => (
+                    <Card key={i}>
+                      <CardContent className="p-6">
+                        <div className="flex justify-between items-start">
+                          <div className="space-y-2">
+                            <div className="text-xs text-muted-foreground">
+                              {new Date(note.date).toLocaleString()}
+                            </div>
+                            <div className="font-medium text-sm">
+                              {note.created_by_name || "System"}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {note.note}
+                            </div>
+                          </div>
+                          {note.source === "member_notes" && (
+                            <AlertDialog
+                              open={deleteDialogOpen && noteToDelete === note.id}
+                              onOpenChange={setDeleteDialogOpen}
+                            >
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => {
+                                    setNoteToDelete(note.id);
+                                    setDeleteDialogOpen(true);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 text-red-500" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    Are you absolutely sure?
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This action cannot be undone. This will
+                                    permanently delete the note.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel
+                                    onClick={() => setNoteToDelete(null)}
+                                  >
+                                    Cancel
+                                  </AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDeleteNote(note.id)}
+                                    disabled={isDeletingNote}
+                                  >
+                                    {isDeletingNote ? (
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : (
+                                      "Continue"
+                                    )}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
                         </div>
-                        <div className="font-medium text-sm">{note.user}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {note.note}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <div className="text-center text-muted-foreground py-10">
+                    No notes found.
+                  </div>
+                )}
               </div>
             </TabsContent>
           </Tabs>
