@@ -94,15 +94,18 @@ export default function MemberProfile() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
   const [isDeletingNote, setIsDeletingNote] = useState(false);
+  const [isAddingNote, setIsAddingNote] = useState(false);
 
   async function handleNoteSubmit() {
     if (!newNote.trim() || !memberId) return;
+    setIsAddingNote(true);
 
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) {
       alert("You must be logged in to add a note.");
+      setIsAddingNote(false);
       return;
     }
 
@@ -122,6 +125,7 @@ export default function MemberProfile() {
       setNoteDialogOpen(false);
       fetchMemberData(); // Refresh notes
     }
+    setIsAddingNote(false);
   }
 
   async function handleDeleteNote(noteId: string) {
@@ -649,7 +653,7 @@ export default function MemberProfile() {
                   <p className="text-xs text-muted-foreground">
                     Total Interest Paid
                   </p>
-                  <p className="text-xl font-bold">N{totalInterestPaid.toLocaleString()}</p>
+                  <p className="text-xl font-bold">₦{totalInterestPaid.toLocaleString()}</p>
                 </div>
               </CardContent>
             </Card>
@@ -662,7 +666,7 @@ export default function MemberProfile() {
                   <p className="text-xs text-muted-foreground">
                     Pending Interest
                   </p>
-                  <p className="text-xl font-bold">N{pendingInterest.toLocaleString()}</p>
+                  <p className="text-xl font-bold">₦{pendingInterest.toLocaleString()}</p>
                 </div>
               </CardContent>
             </Card>
@@ -673,7 +677,7 @@ export default function MemberProfile() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Active Loan</p>
-                  <p className="text-xl font-bold">N{activeLoan.toLocaleString()}</p>
+                  <p className="text-xl font-bold">₦{activeLoan.toLocaleString()}</p>
                 </div>
               </CardContent>
             </Card>
@@ -686,7 +690,7 @@ export default function MemberProfile() {
                   <p className="text-xs text-muted-foreground">
                     Current Balance
                   </p>
-                  <p className="text-xl font-bold">N{currentBalance.toLocaleString()}</p>
+                  <p className="text-xl font-bold">₦{currentBalance.toLocaleString()}</p>
                 </div>
               </CardContent>
             </Card>
@@ -759,7 +763,7 @@ export default function MemberProfile() {
                                   : "text-red-600"
                               }`}
                             >
-                              {item.type === "success" ? "+" : "-"}N{item.amount.toLocaleString()}
+                              {item.type === "success" ? "+" : "-"}₦{item.amount.toLocaleString()}
                             </span>
                           </div>
                         ))
@@ -810,8 +814,8 @@ export default function MemberProfile() {
                                     <span>Tenure: {tenure} months</span>
                                   </div>
                                   <div className="flex justify-between text-xs text-muted-foreground">
-                                    <span>Paid: N{loanRepaid.toLocaleString()}</span>
-                                    <span>Remaining: N{remaining.toLocaleString()}</span>
+                                    <span>Paid: ₦{loanRepaid.toLocaleString()}</span>
+                                    <span>Remaining: ₦{remaining.toLocaleString()}</span>
                                   </div>
                                   <Progress value={progress} className="h-2 bg-gray-100" />
                                 </div>
@@ -833,7 +837,7 @@ export default function MemberProfile() {
                                     <p className="text-xs text-muted-foreground mb-1">
                                       Monthly Payment (Principal)
                                     </p>
-                                    <p className="font-medium text-sm">N{Math.ceil(monthlyPrincipal).toLocaleString()}</p>
+                                    <p className="font-medium text-sm">₦{Math.ceil(monthlyPrincipal).toLocaleString()}</p>
                                   </div>
                                   <div>
                                     <p className="text-xs text-muted-foreground mb-1">
@@ -1098,12 +1102,12 @@ export default function MemberProfile() {
                           return (
                             <TableRow key={loan.id}>
                               <TableCell className="font-medium capitalize">{loan.state || "Unknown"}</TableCell>
-                              <TableCell>N{amount.toLocaleString()}</TableCell>
+                              <TableCell>₦{amount.toLocaleString()}</TableCell>
                               <TableCell>{disbursedDate ? format(new Date(disbursedDate), "dd-MM-yyyy") : "N/A"}</TableCell>
                               <TableCell>{loan.tenure} months</TableCell>
                               <TableCell>{loan.interest_rate}%</TableCell>
-                              <TableCell>N{paid.toLocaleString()}</TableCell>
-                              <TableCell>N{remaining.toLocaleString()}</TableCell>
+                              <TableCell>₦{paid.toLocaleString()}</TableCell>
+                              <TableCell>₦{remaining.toLocaleString()}</TableCell>
                             </TableRow>
                           );
                         })
@@ -1289,9 +1293,13 @@ export default function MemberProfile() {
                     <DialogFooter>
                       <Button
                         onClick={handleNoteSubmit}
-                        disabled={!newNote.trim()}
+                        disabled={!newNote.trim() || isAddingNote}
                       >
-                        Save Note
+                        {isAddingNote ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          "Save Note"
+                        )}
                       </Button>
                     </DialogFooter>
                   </DialogContent>

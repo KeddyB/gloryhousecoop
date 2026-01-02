@@ -154,7 +154,7 @@ export function RecentTransactions() {
               <div className="text-right flex items-center">
                 <p className={`text-sm font-semibold ${transaction.type === 'disbursement' ? 'text-red-500' : 'text-green-600'}`}>
                    {transaction.type === 'disbursement' ? '-' : '+'}
-                   N{transaction.amount.toLocaleString()}
+                   ₦{transaction.amount.toLocaleString()}
                 </p>
               </div>
             </div>
