@@ -45,7 +45,7 @@ import { cn, formatCurrencyShort } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
 import { format, isBefore, startOfDay } from "date-fns";
 import { toast } from "sonner";
-import { LoanRepaymentSummary, Repayment } from "../types";
+import { LoanRepaymentSummary, Repayment } from "../../lib/types/loans";
 
 export default function RepaymentPage() {
   const supabase = useMemo(() => createClient(), []);

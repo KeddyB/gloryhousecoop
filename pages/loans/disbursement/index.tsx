@@ -41,7 +41,7 @@ import { cn, formatCurrencyShort } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Loan, Disbursement } from "../types";
+import { Loan, Disbursement } from "../../lib/types/loans";
 
 const HISTORY_PER_PAGE = 5;
 
