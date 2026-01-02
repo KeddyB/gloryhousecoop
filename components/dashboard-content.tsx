@@ -134,7 +134,7 @@ export function DashboardContent() {
         <div className="flex justify-between items-start mb-6 md:mb-8 pt-12 md:pt-0">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">Dashboard</h1>
-            <p className="text-sm md:text-base text-muted-foreground">Welcome back, Here's your society overview</p>
+            <p className="text-sm md:text-base text-muted-foreground">Welcome back, Here&apos;s your society overview</p>
           </div>
         </div>
 
