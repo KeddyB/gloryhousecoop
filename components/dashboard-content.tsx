@@ -9,15 +9,19 @@ import { NewApplications } from "@/components/new-applications"
 import { QuickActions } from "@/components/quick-actions"
 import { createClient } from "@/utils/supabase/client"
 
+import { Skeleton } from "@/components/ui/skeleton"
+
 export function DashboardContent() {
   const [totalMembers, setTotalMembers] = useState("...")
   const [newMembersText, setNewMembersText] = useState("...")
   const [activeLoansCount, setActiveLoansCount] = useState("...")
   const [totalInterest, setTotalInterest] = useState("...")
   const [totalProfit, setTotalProfit] = useState("...")
-  
+  const [loading, setLoading] = useState(true)
+
   useEffect(() => {
     const fetchStats = async () => {
+      setLoading(true)
       const supabase = createClient()
       
       // Get total members
@@ -81,10 +85,47 @@ export function DashboardContent() {
       // Profit = (Interest + Repayments) - Disbursed
       const profit = (interestSum + repaymentSum) - disbursedSum
       setTotalProfit(`₦${profit.toLocaleString()}`)
+      setLoading(false)
     }
 
     fetchStats()
   }, [])
+
+  if (loading) {
+    return (
+      <main className="flex-1 overflow-y-auto bg-background">
+        <div className="p-8">
+          {/* Header Skeleton */}
+          <div className="flex justify-between items-start mb-8">
+            <div>
+              <Skeleton className="h-9 w-48 mb-2" />
+              <Skeleton className="h-5 w-64" />
+            </div>
+          </div>
+
+          {/* KPI Cards Skeleton */}
+          <div className="grid grid-cols-4 gap-6 mb-8">
+            <Skeleton className="h-[126px] w-full" />
+            <Skeleton className="h-[126px] w-full" />
+            <Skeleton className="h-[126px] w-full" />
+            <Skeleton className="h-[126px] w-full" />
+          </div>
+
+          {/* Charts Skeleton */}
+          <div className="grid grid-cols-2 gap-6 mb-8">
+            <Skeleton className="h-[350px] w-full" />
+            <Skeleton className="h-[350px] w-full" />
+          </div>
+
+          {/* Transactions and Applications Skeleton */}
+          <div className="grid grid-cols-2 gap-6 mb-8">
+            <Skeleton className="h-[400px] w-full" />
+            <Skeleton className="h-[400px] w-full" />
+          </div>
+        </div>
+      </main>
+    )
+  }
 
   return (
     <main className="flex-1 overflow-y-auto bg-background">
@@ -99,10 +140,10 @@ export function DashboardContent() {
 
         {/* KPI Cards */}
         <div className="grid grid-cols-4 gap-6 mb-8">
-          <KpiCard title="Total Members" value={totalMembers} change={newMembersText} icon="users" />
-          <KpiCard title="Interest Monthly Fees" value={totalInterest} change="Total collected" icon="wallet" />
-          <KpiCard title="Active Loans" value={activeLoansCount} change="Currently active loans" icon="briefcase" />
-          <KpiCard title="Total Profit" value={totalProfit} change="Net cash flow" icon="trending" />
+          <KpiCard title="Total Members" value={totalMembers} change={newMembersText} icon="users" loading={loading} />
+          <KpiCard title="Interest Monthly Fees" value={totalInterest} change="Total collected" icon="wallet" loading={loading} />
+          <KpiCard title="Active Loans" value={activeLoansCount} change="Currently active loans" icon="briefcase" loading={loading} />
+          <KpiCard title="Total Profit" value={totalProfit} change="Net cash flow" icon="trending" loading={loading} />
         </div>
 
         {/* Charts */}

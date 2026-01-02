@@ -24,6 +24,7 @@ import {
   eachYearOfInterval,
 } from "date-fns"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Skeleton } from "@/components/ui/skeleton"
 
 type Interval = "hourly" | "daily" | "weekly" | "monthly" | "yearly"
 
@@ -162,11 +163,15 @@ export function InterestFeeChart() {
   }, [payments, interval])
 
   if (isLoading) {
-     return (
-        <Card className="p-6 h-[300px] flex items-center justify-center">
-             <div className="h-6 w-6 animate-spin rounded-full border-2 border-purple-500 border-t-transparent" />
-        </Card>
-     )
+    return (
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <Skeleton className="h-8 w-1/3" />
+          <Skeleton className="h-8 w-[120px]" />
+        </div>
+        <Skeleton className="h-[300px] w-full" />
+      </Card>
+    )
   }
 
   return (
