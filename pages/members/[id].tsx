@@ -189,9 +189,11 @@ export default function MemberProfile() {
   const [currentBalance, setCurrentBalance] = useState<number | null>(null);
   const [recentActivity, setRecentActivity] = useState<any[] | null>(null);
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
+  const [isLoadingTransactions, setIsLoadingTransactions] = useState(true); // New state
   const [interestHistory, setInterestHistory] = useState<any[]>([]);
   const [loanHistory, setLoanHistory] = useState<any[]>([]);
   const [loanDocuments, setLoanDocuments] = useState<any[]>([]);
+  const [isLoadingDocuments, setIsLoadingDocuments] = useState(true); // New state
 
   async function fetchMemberData() {
     if (!memberId) return;
@@ -364,18 +366,26 @@ export default function MemberProfile() {
   }
 
   async function fetchLoanDocuments() {
-    if (!memberId) return;
+    setIsLoadingDocuments(true); // Start loading
 
-    const { data: loans, error } = await supabase
-      .from("loans")
-      .select("id, created_at, collateral_docs_url, loan_agreement_url")
-      .eq("member_id", memberId)
-      .order('created_at', { ascending: false });
+    if (!memberId) {
+      setIsLoadingDocuments(false);
+      return;
+    }
 
-    if (error) {
-      console.error("Error fetching loan documents:", error);
-      setLoanDocuments([]);
-    } else {
+    try {
+      const { data: loans, error } = await supabase
+        .from("loans")
+        .select("id, created_at, collateral_docs_url, loan_agreement_url")
+        .eq("member_id", memberId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error("Error fetching loan documents:", error);
+        setLoanDocuments([]); // Ensure it's an empty array on error
+        return;
+      }
+      
       const documents = (loans || []).flatMap((loan: any) => {
         const docs = [];
         if (loan.collateral_docs_url) {
@@ -397,6 +407,11 @@ export default function MemberProfile() {
         return docs;
       });
       setLoanDocuments(documents);
+    } catch (error) {
+      console.error("Error fetching loan documents:", error);
+      setLoanDocuments([]); // Ensure it's an empty array on unexpected error
+    } finally {
+      setIsLoadingDocuments(false); // End loading
     }
   }
 
@@ -477,77 +492,92 @@ export default function MemberProfile() {
   }
 
   async function fetchRecentActivity() {
-    if (!memberId) return;
+    setIsLoadingTransactions(true); // Start loading
 
-    const { data: loans, error: loansError } = await supabase
-      .from("loans")
-      .select("id")
-      .eq("member_id", memberId);
-
-    if (loansError) {
-      console.error("Error fetching loans for recent activity:", loansError);
+    if (!memberId) {
+      setIsLoadingTransactions(false);
       return;
     }
-    
-    if (!loans || loans.length === 0) {
-      setAllTransactions([]);
+
+    try {
+      const { data: loans, error: loansError } = await supabase
+        .from("loans")
+        .select("id")
+        .eq("member_id", memberId);
+
+      if (loansError) {
+        console.error("Error fetching loans for recent activity:", loansError);
+        setAllTransactions([]); // Ensure it's an empty array on error
+        setRecentActivity([]);
+        return;
+      }
+      
+      if (!loans || loans.length === 0) {
+        setAllTransactions([]);
+        setRecentActivity([]);
+        return;
+      }
+
+      const loanIds = loans.map(l => l.id);
+
+      let activities: any[] = [];
+
+      const { data: interestPayments, error: interestError } = await supabase.from("interest_payments").select("id, amount_paid, payment_date, created_at").in("loan_id", loanIds);
+
+      if (interestError) console.error("Error fetching interest payments for activity:", interestError);
+      else if (interestPayments) {
+        activities = activities.concat(interestPayments.map(p => {
+            return {
+              id: `int-${p.id}`, title: "Interest Payment",
+              date: p.payment_date || p.created_at,
+              created_at: p.created_at,
+              amount: p.amount_paid, type: "success"
+            };
+        }));
+      }
+
+      const { data: repayments, error: repaymentError } = await supabase.from("repayments").select("id, amount_paid, paid_at, updated_at, created_at").in("loan_id", loanIds);
+
+      if (repaymentError) console.error("Error fetching repayments for activity:", repaymentError);
+      else if (repayments) {
+        activities = activities.concat(repayments.map(r => {
+            const activityDate = r.updated_at || r.paid_at || r.created_at;
+            return {
+              id: `rep-${r.id}`, title: "Loan Repayment", date: activityDate,
+              created_at: activityDate, amount: r.amount_paid, type: "success"
+            };
+        }));
+      }
+
+      const { data: disbursements, error: disbursementError } = await supabase.from("disbursements").select("id, disbursement_amount, created_at").in("loan_id", loanIds);
+
+      if (disbursementError) console.error("Error fetching disbursements for activity:", disbursementError);
+      else if (disbursements) {
+        activities = activities.concat(disbursements.map(d => ({
+            id: `dis-${d.id}`, title: "Loan Disbursement", date: d.created_at,
+            created_at: d.created_at, amount: d.disbursement_amount, type: "danger"
+        })));
+      }
+
+      activities = activities.filter(a => a.amount > 0);
+
+      activities.sort((a, b) => {
+        const dateA = new Date(a.created_at);
+        const dateB = new Date(b.created_at);
+        if (isNaN(dateA.getTime())) return 1;
+        if (isNaN(dateB.getTime())) return -1;
+        return dateB.getTime() - dateA.getTime();
+      });
+
+      setAllTransactions(activities);
+      setRecentActivity(activities.slice(0, 4));
+    } catch (error) {
+      console.error("Error fetching recent activity:", error);
+      setAllTransactions([]); // Ensure it's an empty array on unexpected error
       setRecentActivity([]);
-      return;
+    } finally {
+      setIsLoadingTransactions(false); // End loading
     }
-
-    const loanIds = loans.map(l => l.id);
-
-    let activities: any[] = [];
-
-    const { data: interestPayments, error: interestError } = await supabase.from("interest_payments").select("id, amount_paid, payment_date, created_at").in("loan_id", loanIds);
-
-    if (interestError) console.error("Error fetching interest payments for activity:", interestError);
-    else if (interestPayments) {
-      activities = activities.concat(interestPayments.map(p => {
-          return {
-            id: `int-${p.id}`, title: "Interest Payment",
-            date: p.payment_date || p.created_at,
-            created_at: p.created_at,
-            amount: p.amount_paid, type: "success"
-          };
-      }));
-    }
-
-    const { data: repayments, error: repaymentError } = await supabase.from("repayments").select("id, amount_paid, paid_at, updated_at, created_at").in("loan_id", loanIds);
-
-    if (repaymentError) console.error("Error fetching repayments for activity:", repaymentError);
-    else if (repayments) {
-      activities = activities.concat(repayments.map(r => {
-          const activityDate = r.updated_at || r.paid_at || r.created_at;
-          return {
-            id: `rep-${r.id}`, title: "Loan Repayment", date: activityDate,
-            created_at: activityDate, amount: r.amount_paid, type: "success"
-          };
-      }));
-    }
-
-    const { data: disbursements, error: disbursementError } = await supabase.from("disbursements").select("id, disbursement_amount, created_at").in("loan_id", loanIds);
-
-    if (disbursementError) console.error("Error fetching disbursements for activity:", disbursementError);
-    else if (disbursements) {
-      activities = activities.concat(disbursements.map(d => ({
-          id: `dis-${d.id}`, title: "Loan Disbursement", date: d.created_at,
-          created_at: d.created_at, amount: d.disbursement_amount, type: "danger"
-      })));
-    }
-
-    activities = activities.filter(a => a.amount > 0);
-
-    activities.sort((a, b) => {
-      const dateA = new Date(a.created_at);
-      const dateB = new Date(b.created_at);
-      if (isNaN(dateA.getTime())) return 1;
-      if (isNaN(dateB.getTime())) return -1;
-      return dateB.getTime() - dateA.getTime();
-    });
-
-    setAllTransactions(activities);
-    setRecentActivity(activities.slice(0, 4));
   }
 
   useEffect(() => {
@@ -1274,22 +1304,30 @@ export default function MemberProfile() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <Table className="table-fixed">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[25%]">Type</TableHead>
-                        <TableHead className="w-[40%]">Description</TableHead>
-                        <TableHead className="w-[15%] text-right">
-                          Amount
-                        </TableHead>
-                        <TableHead className="w-[20%] text-right">
-                          Date
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {allTransactions.length > 0 ? (
-                        allTransactions.map((item, index) => (
+                  {isLoadingTransactions ? (
+                    <div className="space-y-4">
+                      <Skeleton className="h-10 w-full" />
+                      <Skeleton className="h-10 w-full" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                  ) : allTransactions.length > 0 ? (
+                    <Table className="table-fixed">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[25%]">Type</TableHead>
+                          <TableHead className="w-[40%]">
+                            Description
+                          </TableHead>
+                          <TableHead className="w-[15%] text-right">
+                            Amount
+                          </TableHead>
+                          <TableHead className="w-[20%] text-right">
+                            Date
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {allTransactions.map((item, index) => (
                           <TableRow
                             key={item.id}
                             className={index % 2 === 0 ? "bg-muted/25" : ""}
@@ -1324,19 +1362,14 @@ export default function MemberProfile() {
                               {format(new Date(item.date), "dd-MM-yyyy")}
                             </TableCell>
                           </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell
-                            colSpan={4}
-                            className="text-center text-muted-foreground py-10"
-                          >
-                            No transactions found.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="col-span-2 text-center text-muted-foreground py-10">
+                      No transactions found.
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -1346,7 +1379,12 @@ export default function MemberProfile() {
                 <h2 className="text-lg font-medium">Documents</h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {loanDocuments.length > 0 ? (
+                {isLoadingDocuments ? (
+                  <>
+                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-24 w-full" />
+                  </>
+                ) : loanDocuments.length > 0 ? (
                   loanDocuments.map((doc, index) => (
                     <Card key={index}>
                       <CardContent className="p-6 flex items-start gap-4">
