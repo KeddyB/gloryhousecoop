@@ -37,7 +37,7 @@ import {
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
 import { AmountInput } from "@/components/ui/amount-input";
-import { Member } from "@/pages/members/types";
+import { Member } from "@/lib/types/members";
 
 const steps = [
   { id: 1, name: "Applicant Information", icon: User },

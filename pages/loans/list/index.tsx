@@ -34,7 +34,7 @@ import {
 import { createClient } from "@/utils/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Loan, LoanState } from "../types";
+import { Loan, LoanState } from "../../lib/types/loans";
 import { format } from "date-fns";
 import { cn, formatCurrencyShort } from "@/lib/utils";
 
