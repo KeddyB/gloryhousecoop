@@ -194,7 +194,7 @@ function AddMemberForm() {
     <div className="flex h-screen bg-background">
       <Sidebar />
       <div className="flex-1 overflow-auto">
-        <div className="p-8 space-y-8">
+        <div className="pt-[4.5rem] p-8 space-y-8 md:pt-8">
           {/* Header */}
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => router.back()}>

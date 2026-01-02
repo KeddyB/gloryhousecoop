@@ -50,7 +50,7 @@ export function NewApplications() {
           
           return {
             id: loan.id,
-            name: loan.member?.full_name || loan.member?.name || "Unknown Member",
+            name: loan.member?.[0]?.full_name || loan.member?.[0]?.name || "Unknown Member",
             date: loan.created_at,
             amount: loan.loan_amount,
             isDisbursed: hasDisbursementRecord || isStateDisbursed
@@ -91,7 +91,7 @@ export function NewApplications() {
             return (
               <div
                 key={app.id}
-                className="flex flex-col md:flex-row md:items-center md:justify-between p-3 md:p-4 bg-background rounded-lg border border-border gap-2"
+                className="flex items-center justify-between p-3 md:p-4 bg-background rounded-lg border border-border gap-2"
               >
                 <div className="flex-1">
                   <p className="text-xs md:text-sm font-semibold text-foreground truncate">{app.name}</p>
