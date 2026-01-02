@@ -41,7 +41,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { AmountInput } from "@/components/ui/amount-input";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrencyShort } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
 import { format, isBefore, startOfDay } from "date-fns";
 import { toast } from "sonner";
@@ -204,10 +204,21 @@ export default function RepaymentPage() {
       return;
     }
 
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const operatorName =
+      user?.user_metadata?.full_name ||
+      user?.user_metadata?.name ||
+      user?.email ||
+      "Operator";
+
     const { error } = await supabase.rpc("record_repayment_redistributed", {
       p_loan_id: selectedSummary.loan_id,
       p_amount: amount,
       p_notes: notes || "",
+      p_created_by: operatorName,
     });
 
     if (error) {
@@ -224,17 +235,17 @@ export default function RepaymentPage() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50/50">
+    <div className="flex h-screen bg-background">
       <Sidebar />
       <div className="flex-1 overflow-auto p-8">
         <div className="w-full mx-auto space-y-8">
           {/* Header */}
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 uppercase">
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">
                 Repayment Management
               </h1>
-              <p className="text-sm text-gray-500">
+              <p className="text-muted-foreground text-base">
                 Track loan repayments and manage collections
               </p>
             </div>
@@ -242,65 +253,65 @@ export default function RepaymentPage() {
 
           {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Card className="border-none shadow-sm rounded-2xl overflow-hidden bg-white">
+            <Card className="shadow-sm rounded-2xl overflow-hidden bg-white">
               <CardContent className="px-6 py-4">
                 <div className="flex justify-between items-center mb-1">
-                  <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                  <p className="text-sm font-medium text-muted-foreground">
                     Total Outstanding
                   </p>
                   <div className="h-8 w-8 bg-blue-50 rounded-xl flex items-center justify-center border border-blue-100 shrink-0 shadow-sm">
                     <span className="text-blue-600 font-bold text-lg">₦</span>
                   </div>
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 truncate">
-                  ₦{stats.totalOutstanding.toLocaleString()}
+                <h3 className="text-3xl font-bold text-foreground truncate">
+                  ₦{formatCurrencyShort(stats.totalOutstanding)}
                 </h3>
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-sm rounded-2xl overflow-hidden bg-white">
+            <Card className="shadow-sm rounded-2xl overflow-hidden bg-white">
               <CardContent className="px-6 py-4">
                 <div className="flex justify-between items-center mb-1">
-                  <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                  <p className="text-sm font-medium text-muted-foreground">
                     Overdue Loans
                   </p>
                   <div className="h-8 w-8 bg-red-50 rounded-xl flex items-center justify-center border border-red-100 shrink-0 shadow-sm">
                     <AlertCircle className="h-4 w-4 text-red-600" />
                   </div>
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 truncate">
+                <h3 className="text-3xl font-bold text-foreground truncate">
                   {stats.overdueCount}
                 </h3>
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-sm rounded-2xl overflow-hidden bg-white">
+            <Card className="shadow-sm rounded-2xl overflow-hidden bg-white">
               <CardContent className="px-6 py-4">
                 <div className="flex justify-between items-center mb-1">
-                  <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                  <p className="text-sm font-medium text-muted-foreground">
                     Total Collected
                   </p>
                   <div className="h-8 w-8 bg-green-50 rounded-xl flex items-center justify-center border border-green-100 shrink-0 shadow-sm">
                     <Banknote className="h-4 w-4 text-green-600" />
                   </div>
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 truncate">
-                  ₦{stats.totalPaid.toLocaleString()}
+                <h3 className="text-3xl font-bold text-foreground truncate">
+                  ₦{formatCurrencyShort(stats.totalPaid)}
                 </h3>
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-sm rounded-2xl overflow-hidden bg-white">
+            <Card className="shadow-sm rounded-2xl overflow-hidden bg-white">
               <CardContent className="px-6 py-4">
                 <div className="flex justify-between items-center mb-1">
-                  <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                  <p className="text-sm font-medium text-muted-foreground">
                     Collection Rate
                   </p>
                   <div className="h-8 w-8 bg-purple-50 rounded-xl flex items-center justify-center border border-purple-100 shrink-0 shadow-sm">
                     <CheckCircle2 className="h-4 w-4 text-purple-600" />
                   </div>
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 truncate">
+                <h3 className="text-3xl font-bold text-foreground truncate">
                   {stats.collectionRate}%
                 </h3>
               </CardContent>
@@ -308,9 +319,9 @@ export default function RepaymentPage() {
           </div>
 
           {/* Active Loans - Repayment Status */}
-          <Card className="border-none shadow-sm rounded-2xl overflow-hidden border border-gray-100">
+          <Card className="shadow-sm rounded-2xl overflow-hidden border border-gray-100">
             <CardHeader className="flex flex-row items-center justify-between pb-6 space-y-0">
-              <CardTitle className="text-sm font-bold uppercase tracking-tight text-gray-800">
+              <CardTitle className="text-lg font-semibold tracking-tight text-foreground">
                 Active Loans - Repayment Status
               </CardTitle>
               <div className="flex items-center gap-4">
@@ -349,23 +360,23 @@ export default function RepaymentPage() {
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-gray-50/50 hover:bg-gray-50/50 border-gray-100">
-                    <TableHead className="text-[10px] font-bold uppercase text-gray-500 py-4 px-6">
+                  <TableRow className="hover:bg-transparent border-[#EEEEEE]">
+                    <TableHead className="h-14 px-8 text-muted-foreground font-semibold text-sm">
                       Applicant
                     </TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase text-gray-500 text-center">
+                    <TableHead className="h-14 font-semibold text-muted-foreground text-sm text-center">
                       Progress
                     </TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase text-gray-500 text-center">
+                    <TableHead className="h-14 font-semibold text-muted-foreground text-sm text-center">
                       Amount Details
                     </TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase text-gray-500 text-center">
+                    <TableHead className="h-14 font-semibold text-muted-foreground text-sm text-center">
                       Next Due
                     </TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase text-gray-500 text-center">
+                    <TableHead className="h-14 font-semibold text-muted-foreground text-sm text-center">
                       Status
                     </TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase text-gray-500 text-right px-6">
+                    <TableHead className="h-14 px-8 font-semibold text-muted-foreground text-sm text-right">
                       Actions
                     </TableHead>
                   </TableRow>
@@ -401,21 +412,21 @@ export default function RepaymentPage() {
                           key={s.loan_id}
                           className="border-gray-50 hover:bg-gray-50/30 transition-colors"
                         >
-                          <TableCell className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <Avatar className="h-8 w-8 bg-gray-100 border border-gray-200">
-                                <AvatarFallback className="text-[10px] font-bold">
+                          <TableCell className="px-8 py-6">
+                            <div className="flex items-center gap-4">
+                              <Avatar className="h-11 w-11 bg-gray-100">
+                                <AvatarFallback className="text-sm font-bold text-muted-foreground">
                                   {s.member.name?.charAt(0)}
                                 </AvatarFallback>
                               </Avatar>
                               <div className="min-w-0">
                                 <p
-                                  className="font-bold text-[11px] text-gray-900 leading-tight truncate w-[100px]"
+                                  className="font-semibold text-foreground text-[15px] leading-tight truncate w-[140px]"
                                   title={s.member.name}
                                 >
                                   {s.member.name}
                                 </p>
-                                <p className="text-[10px] text-gray-400 font-mono mt-0.5 tracking-tighter truncate">
+                                <p className="text-xs font-semibold text-muted-foreground tracking-wider uppercase truncate">
                                   {s.member.member_id}
                                 </p>
                               </div>
@@ -423,7 +434,7 @@ export default function RepaymentPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col items-center gap-1.5 min-w-30">
-                              <div className="flex justify-between w-full text-[10px] font-medium text-gray-500 px-1">
+                              <div className="flex justify-between w-full text-xs font-semibold text-muted-foreground px-1">
                                 <span>
                                   {s.repayments_paid}/{s.repayments}{" "}
                                   installments
@@ -436,24 +447,28 @@ export default function RepaymentPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="flex flex-col gap-1 text-[10px] min-w-35">
-                              <div className="flex justify-between items-center bg-gray-50/50 px-2 py-0.5 rounded border border-gray-100/50">
-                                <span className="text-gray-400">Paid:</span>
-                                <span className="font-bold text-gray-700">
+                            <div className="flex flex-col gap-1 text-xs min-w-35">
+                              <div className="flex justify-between items-center bg-gray-50/50 px-2 py-1 rounded border border-gray-100/50">
+                                <span className="text-muted-foreground font-medium">
+                                  Paid:
+                                </span>
+                                <span className="font-bold text-foreground">
                                   ₦{Number(s.paid).toLocaleString()}
                                 </span>
                               </div>
-                              <div className="flex justify-between items-center bg-gray-50/50 px-2 py-0.5 rounded border border-gray-100/50">
-                                <span className="text-gray-400">
+                              <div className="flex justify-between items-center bg-gray-50/50 px-2 py-1 rounded border border-gray-100/50">
+                                <span className="text-muted-foreground font-medium">
                                   Remaining:
                                 </span>
-                                <span className="font-bold text-gray-700">
+                                <span className="font-bold text-foreground">
                                   ₦{Number(s.remaining).toLocaleString()}
                                 </span>
                               </div>
-                              <div className="flex justify-between items-center bg-gray-50/50 px-2 py-0.5 rounded border border-gray-100/50">
-                                <span className="text-gray-400">Interval:</span>
-                                <span className="font-bold text-gray-700">
+                              <div className="flex justify-between items-center bg-gray-50/50 px-2 py-1 rounded border border-gray-100/50">
+                                <span className="text-muted-foreground font-medium">
+                                  Interval:
+                                </span>
+                                <span className="font-bold text-foreground">
                                   ₦{Number(s.interval_amount).toLocaleString()}
                                 </span>
                               </div>
@@ -461,13 +476,13 @@ export default function RepaymentPage() {
                           </TableCell>
                           <TableCell className="text-center">
                             <div className="flex flex-col items-center gap-0.5">
-                              <p className="text-[11px] font-bold text-gray-700">
+                              <p className="text-sm font-semibold text-foreground">
                                 {s.next_due
                                   ? format(new Date(s.next_due), "dd-MM-yyyy")
                                   : "N/A"}
                               </p>
                               {isOverdue && (
-                                <p className="text-[9px] font-bold text-red-500 uppercase tracking-tighter">
+                                <p className="text-[10px] font-bold text-red-500 uppercase tracking-wider">
                                   OVERDUE
                                 </p>
                               )}
@@ -476,7 +491,7 @@ export default function RepaymentPage() {
                           <TableCell className="text-center">
                             <span
                               className={cn(
-                                "inline-flex items-center px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-tighter border",
+                                "inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider border",
                                 s.status === "paid"
                                   ? "border-green-500 bg-green-500 text-white"
                                   : isOverdue
@@ -493,11 +508,11 @@ export default function RepaymentPage() {
                                 : s.status}
                             </span>
                           </TableCell>
-                          <TableCell className="text-right px-6">
+                          <TableCell className="text-right px-8">
                             <Button
                               size="sm"
                               className={cn(
-                                "text-[10px] h-8 px-4 font-bold rounded-lg gap-1.5 transition-all active:scale-95",
+                                "text-xs h-9 px-4 font-bold rounded-lg gap-1.5 transition-all active:scale-95",
                                 s.status === "paid"
                                   ? "bg-gray-100 text-gray-400 cursor-not-allowed hover:bg-gray-100"
                                   : "bg-black hover:bg-gray-800 text-white"
@@ -518,13 +533,23 @@ export default function RepaymentPage() {
             </CardContent>
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/30">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                  Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
-                  {Math.min(
-                    currentPage * itemsPerPage,
-                    filteredSummaries.length
-                  )}{" "}
-                  of {filteredSummaries.length} entries
+                <p className="text-sm font-medium text-muted-foreground">
+                  Showing{" "}
+                  <span className="text-foreground font-bold">
+                    {(currentPage - 1) * itemsPerPage + 1}
+                  </span>{" "}
+                  to{" "}
+                  <span className="text-foreground font-bold">
+                    {Math.min(
+                      currentPage * itemsPerPage,
+                      filteredSummaries.length
+                    )}
+                  </span>{" "}
+                  of{" "}
+                  <span className="text-foreground font-bold">
+                    {filteredSummaries.length}
+                  </span>{" "}
+                  entries
                 </p>
                 <div className="flex items-center gap-2">
                   <Button
@@ -544,7 +569,7 @@ export default function RepaymentPage() {
                           variant={currentPage === page ? "default" : "outline"}
                           size="sm"
                           className={cn(
-                            "h-8 w-8 p-0 rounded-lg text-[10px] font-bold transition-all active:scale-95",
+                            "h-8 w-8 p-0 rounded-lg text-xs font-bold transition-all active:scale-95",
                             currentPage === page
                               ? "bg-black text-white hover:bg-black"
                               : "border-gray-200 hover:bg-white text-gray-600"
