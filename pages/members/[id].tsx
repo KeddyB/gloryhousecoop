@@ -153,7 +153,7 @@ export default function MemberProfile() {
   const router = useRouter();
   const { id } = router.query;
   const memberId = Array.isArray(id) ? id[0] : id;
-  
+
   const [member, setMember] = useState<Member | null>(null);
   const [loading, setLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -252,16 +252,22 @@ export default function MemberProfile() {
     }
   }
 
-  const [totalInterestPaid, setTotalInterestPaid] = useState<number | null>(null);
+  const [totalInterestPaid, setTotalInterestPaid] = useState<number | null>(
+    null
+  );
   const [pendingInterest, setPendingInterest] = useState<number | null>(null);
   const [missedRepayment, setMissedRepayment] = useState<number>(0);
   const [activeLoan, setActiveLoan] = useState<number | null>(null);
   const [activeLoans, setActiveLoans] = useState<Loan[]>([]);
   const [currentBalance, setCurrentBalance] = useState<number | null>(null);
-  const [recentActivity, setRecentActivity] = useState<ActivityItem[] | null>(null);
+  const [recentActivity, setRecentActivity] = useState<ActivityItem[] | null>(
+    null
+  );
   const [allTransactions, setAllTransactions] = useState<ActivityItem[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true); // New state
-  const [interestHistory, setInterestHistory] = useState<InterestHistoryItem[]>([]);
+  const [interestHistory, setInterestHistory] = useState<InterestHistoryItem[]>(
+    []
+  );
   const [loanHistory, setLoanHistory] = useState<Loan[]>([]);
   const [loanDocuments, setLoanDocuments] = useState<LoanDocument[]>([]);
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(true); // New state
@@ -289,25 +295,35 @@ export default function MemberProfile() {
       // Fetch Active Loans (plural) for KPI cards
       const { data: loansData, error: loansError } = await supabase
         .from("loans")
-        .select("*, disbursements(created_at), interest_payments(payment_for_month, amount_paid), repayments(amount_paid)")
+        .select(
+          "*, disbursements(created_at), interest_payments(payment_for_month, amount_paid), repayments(amount_paid)"
+        )
         .eq("member_id", memberId)
         .or("state.eq.active,state.eq.disbursed");
 
       if (loansError) {
-         console.error("Error fetching loans data:", loansError);
+        console.error("Error fetching loans data:", loansError);
       } else if (loansData) {
         setActiveLoans(loansData as Loan[]);
         // Calculate totals for Active Loans
-        const totalActiveLoanAmount = loansData.reduce((sum, loan) => sum + (loan.loan_amount ?? loan.amount ?? 0), 0);
-        
+        const totalActiveLoanAmount = loansData.reduce(
+          (sum, loan) => sum + (loan.loan_amount ?? loan.amount ?? 0),
+          0
+        );
+
         // Calculate total repayments made towards active loans
         const totalRepaid = loansData.reduce((sum, loan) => {
-            const loanRepaid = loan.repayments ? loan.repayments.reduce((rSum: number, r: Repayment) => rSum + (r.amount_paid ?? 0), 0) : 0;
-            return sum + loanRepaid;
+          const loanRepaid = loan.repayments
+            ? loan.repayments.reduce(
+                (rSum: number, r: Repayment) => rSum + (r.amount_paid ?? 0),
+                0
+              )
+            : 0;
+          return sum + loanRepaid;
         }, 0);
 
         const balance = totalActiveLoanAmount - totalRepaid;
-        
+
         setActiveLoan(totalActiveLoanAmount);
         setCurrentBalance(balance > 0 ? balance : 0);
 
@@ -315,65 +331,71 @@ export default function MemberProfile() {
         let totalPending = 0;
         let totalMissedRepayment = 0;
 
-        loansData.forEach(loan => {
-            const disbursedDate = loan.disbursements?.[0]?.created_at || loan.created_at;
-            
-            if (disbursedDate) {
-                const loanAmount = loan.loan_amount ?? loan.amount ?? 0;
-                const startDue = addMonths(new Date(disbursedDate), 1);
-                const tenure = loan.tenure;
-                const loanEndDate = addMonths(startDue, tenure);
-                const monthlyInterest = (loanAmount * loan.interest_rate) / 100;
-                const monthlyPrincipal = tenure > 0 ? loanAmount / tenure : 0;
-                
-                // Interest Calculation
-                const now = new Date();
-                const currentMonthStart = startOfMonth(now);
-                
-                let limitDate = addMonths(currentMonthStart, 1);
-                if (isBefore(loanEndDate, limitDate)) {
-                    limitDate = loanEndDate;
-                }
+        loansData.forEach((loan) => {
+          const disbursedDate =
+            loan.disbursements?.[0]?.created_at || loan.created_at;
 
-                let iterDate = startOfMonth(startDue);
-                while (isBefore(iterDate, limitDate)) {
-                     const isPaid = loan.interest_payments?.some((p: InterestPayment) => 
-                         isSameMonth(new Date(p.payment_for_month), iterDate)
-                     );
-                     
-                     if (!isPaid) {
-                         totalPending += monthlyInterest;
-                     }
-                     iterDate = addMonths(iterDate, 1);
-                }
+          if (disbursedDate) {
+            const loanAmount = loan.loan_amount ?? loan.amount ?? 0;
+            const startDue = addMonths(new Date(disbursedDate), 1);
+            const tenure = loan.tenure;
+            const loanEndDate = addMonths(startDue, tenure);
+            const monthlyInterest = (loanAmount * loan.interest_rate) / 100;
+            const monthlyPrincipal = tenure > 0 ? loanAmount / tenure : 0;
 
-                // Principal Installment Calculation
-                // Check how many installments are due based on time
-                let dueInstallments = 0;
-                let d = new Date(startDue);
-                let monthsChecked = 0;
-                
-                while (isBefore(d, now) && monthsChecked < tenure) {
-                     dueInstallments++;
-                     d = addMonths(d, 1);
-                     monthsChecked++;
-                }
-                
-                const expectedRepaid = dueInstallments * monthlyPrincipal;
-                const loanRepaid = loan.repayments ? loan.repayments.reduce((rSum: number, r: Repayment) => rSum + (r.amount_paid ?? 0), 0) : 0;
+            // Interest Calculation
+            const now = new Date();
+            const currentMonthStart = startOfMonth(now);
 
-                if (loanRepaid < expectedRepaid) {
-                    // Use a small tolerance for floating point comparison
-                    if (expectedRepaid - loanRepaid > 1) {
-                         totalMissedRepayment += (expectedRepaid - loanRepaid);
-                    }
-                }
+            let limitDate = addMonths(currentMonthStart, 1);
+            if (isBefore(loanEndDate, limitDate)) {
+              limitDate = loanEndDate;
             }
+
+            let iterDate = startOfMonth(startDue);
+            while (isBefore(iterDate, limitDate)) {
+              const isPaid = loan.interest_payments?.some(
+                (p: InterestPayment) =>
+                  isSameMonth(new Date(p.payment_for_month), iterDate)
+              );
+
+              if (!isPaid) {
+                totalPending += monthlyInterest;
+              }
+              iterDate = addMonths(iterDate, 1);
+            }
+
+            // Principal Installment Calculation
+            // Check how many installments are due based on time
+            let dueInstallments = 0;
+            let d = new Date(startDue);
+            let monthsChecked = 0;
+
+            while (isBefore(d, now) && monthsChecked < tenure) {
+              dueInstallments++;
+              d = addMonths(d, 1);
+              monthsChecked++;
+            }
+
+            const expectedRepaid = dueInstallments * monthlyPrincipal;
+            const loanRepaid = loan.repayments
+              ? loan.repayments.reduce(
+                  (rSum: number, r: Repayment) => rSum + (r.amount_paid ?? 0),
+                  0
+                )
+              : 0;
+
+            if (loanRepaid < expectedRepaid) {
+              // Use a small tolerance for floating point comparison
+              if (expectedRepaid - loanRepaid > 1) {
+                totalMissedRepayment += expectedRepaid - loanRepaid;
+              }
+            }
+          }
         });
         setPendingInterest(totalPending);
         setMissedRepayment(totalMissedRepayment);
       }
-
     } catch (error) {
       console.error("Unexpected error:", error);
     }
@@ -391,14 +413,16 @@ export default function MemberProfile() {
       console.error("Error fetching interest history:", error);
       setInterestHistory([]);
     } else {
-      const history = payments.map(p => {
+      const history = payments.map((p) => {
         return {
-          month: p.payment_for_month ? format(new Date(p.payment_for_month), "MMMM, yyyy") : "Unknown",
+          month: p.payment_for_month
+            ? format(new Date(p.payment_for_month), "MMMM, yyyy")
+            : "Unknown",
           amount: `N${(p.amount_paid || 0).toLocaleString()}`,
           date: format(new Date(p.payment_date || p.created_at), "dd-MM-yyyy"),
           method: p.payment_method || "Bank Transfer",
           status: "paid", // Assuming all records here are paid
-          rawDate: new Date(p.created_at)
+          rawDate: new Date(p.created_at),
         };
       });
 
@@ -420,19 +444,21 @@ export default function MemberProfile() {
 
     const { data: loans, error } = await supabase
       .from("loans")
-      .select(`
+      .select(
+        `
           *,
           repayments(amount_paid),
           disbursements(created_at)
-      `)
+      `
+      )
       .eq("member_id", memberId)
-      .order('created_at', { ascending: false });
+      .order("created_at", { ascending: false });
 
     if (error) {
       console.error("Error fetching loan history:", error);
       setLoanHistory([]);
     } else {
-      setLoanHistory(loans as Loan[] || []);
+      setLoanHistory((loans as Loan[]) || []);
     }
   }
 
@@ -449,14 +475,14 @@ export default function MemberProfile() {
         .from("loans")
         .select("id, created_at, collateral_docs_url, loan_agreement_url")
         .eq("member_id", memberId)
-        .order('created_at', { ascending: false });
+        .order("created_at", { ascending: false });
 
       if (error) {
         console.error("Error fetching loan documents:", error);
         setLoanDocuments([]); // Ensure it's an empty array on error
         return;
       }
-      
+
       const documents = (loans || []).flatMap((loan: LoanForDocs) => {
         const docs: LoanDocument[] = [];
         if (loan.collateral_docs_url) {
@@ -464,7 +490,7 @@ export default function MemberProfile() {
             name: "Collateral Document",
             url: loan.collateral_docs_url,
             loanId: loan.id,
-            createdAt: loan.created_at
+            createdAt: loan.created_at,
           });
         }
         if (loan.loan_agreement_url) {
@@ -472,7 +498,7 @@ export default function MemberProfile() {
             name: "Loan Agreement",
             url: loan.loan_agreement_url,
             loanId: loan.id,
-            createdAt: loan.created_at
+            createdAt: loan.created_at,
           });
         }
         return docs;
@@ -500,13 +526,15 @@ export default function MemberProfile() {
     if (memberNotesError) {
       console.error("Error fetching member notes:", memberNotesError);
     } else if (memberNotes) {
-      allNotes = allNotes.concat(memberNotes.map(n => ({
-        id: n.id,
-        note: n.note,
-        date: n.created_at,
-        created_by_name: n.created_by_name,
-        source: "member_notes"
-      })));
+      allNotes = allNotes.concat(
+        memberNotes.map((n) => ({
+          id: n.id,
+          note: n.note,
+          date: n.created_at,
+          created_by_name: n.created_by_name,
+          source: "member_notes",
+        }))
+      );
     }
 
     // 2. Get loan IDs for the member
@@ -518,46 +546,77 @@ export default function MemberProfile() {
     if (loansError) {
       console.error("Error fetching loans for notes:", loansError);
     } else if (loans && loans.length > 0) {
-      const loanIds = loans.map(l => l.id);
+      const loanIds = loans.map((l) => l.id);
 
-      const { data: disbursementNotes, error: disbursementError } = await supabase.from("disbursements").select("id, notes, created_at, disbursed_by_name").in("loan_id", loanIds).not("notes", "is", null);
-      
-      if (disbursementError) console.error("Error fetching disbursement notes:", disbursementError);
+      const { data: disbursementNotes, error: disbursementError } =
+        await supabase
+          .from("disbursements")
+          .select("id, notes, created_at, disbursed_by_name")
+          .in("loan_id", loanIds)
+          .not("notes", "is", null);
+
+      if (disbursementError)
+        console.error("Error fetching disbursement notes:", disbursementError);
       else if (disbursementNotes) {
-        allNotes = allNotes.concat(disbursementNotes.map(d => ({
-          id: `dis-${d.id}`, note: d.notes, date: d.created_at,
-          created_by_name: d.disbursed_by_name || "System", source: "disbursement",
-        })));
+        allNotes = allNotes.concat(
+          disbursementNotes.map((d) => ({
+            id: `dis-${d.id}`,
+            note: d.notes,
+            date: d.created_at,
+            created_by_name: d.disbursed_by_name || "System",
+            source: "disbursement",
+          }))
+        );
       }
 
-      const { data: repaymentNotes, error: repaymentError } = await supabase.from("repayments").select("id, notes, paid_at, updated_at, created_at, created_by").in("loan_id", loanIds).not("notes", "is", null);
+      const { data: repaymentNotes, error: repaymentError } = await supabase
+        .from("payments")
+        .select("id, notes, created_at, created_by")
+        .in("loan_id", loanIds)
+        .not("notes", "is", null);
 
-      if (repaymentError) console.error("Error fetching repayment notes:", repaymentError);
+      if (repaymentError)
+        console.error("Error fetching repayment notes:", repaymentError);
       else if (repaymentNotes) {
-        allNotes = allNotes.concat(repaymentNotes.map(r => ({
-          id: `rep-${r.id}`, note: r.notes, date: r.updated_at || r.paid_at || r.created_at,
-          created_by_name: r.created_by || "System", source: "repayment",
-        })));
+        allNotes = allNotes.concat(
+          repaymentNotes.map((r) => ({
+            id: `rep-${r.id}`,
+            note: r.notes as string,
+            date: r.created_at,
+            created_by_name: r.created_by || "System",
+            source: "repayment",
+          }))
+        );
       }
 
-      const { data: interestNotes, error: interestError } = await supabase.from("interest_payments").select("id, notes, created_at").in("loan_id", loanIds).not("notes", "is", null);
+      const { data: interestNotes, error: interestError } = await supabase
+        .from("interest_payments")
+        .select("id, notes, created_at, created_by_name")
+        .in("loan_id", loanIds)
+        .not("notes", "is", null);
 
-      if (interestError) console.error("Error fetching interest payment notes:", interestError);
+      if (interestError)
+        console.error("Error fetching interest payment notes:", interestError);
       else if (interestNotes) {
-        allNotes = allNotes.concat(interestNotes.map(p => ({
-          id: `int-${p.id}`, note: p.notes, date: p.created_at,
-          created_by_name: "System", source: "interest_payment",
-        })));
+        allNotes = allNotes.concat(
+          interestNotes.map((p) => ({
+            id: `int-${p.id}`,
+            note: p.notes as string,
+            date: p.created_at,
+            created_by_name: (p as any).created_by_name || "System",
+            source: "interest_payment",
+          }))
+        );
       }
     }
 
     // 3. Sort and set
     allNotes.sort((a, b) => {
-        const dateA = new Date(a.date);
-        const dateB = new Date(b.date);
-        if (isNaN(dateA.getTime())) return 1;
-        if (isNaN(dateB.getTime())) return -1;
-        return dateB.getTime() - dateA.getTime();
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      if (isNaN(dateA.getTime())) return 1;
+      if (isNaN(dateB.getTime())) return -1;
+      return dateB.getTime() - dateA.getTime();
     });
     setNotes(allNotes);
   }
@@ -582,55 +641,92 @@ export default function MemberProfile() {
         setRecentActivity([]);
         return;
       }
-      
+
       if (!loans || loans.length === 0) {
         setAllTransactions([]);
         setRecentActivity([]);
         return;
       }
 
-      const loanIds = loans.map(l => l.id);
+      const loanIds = loans.map((l) => l.id);
 
       let activities: ActivityItem[] = [];
 
-      const { data: interestPayments, error: interestError } = await supabase.from("interest_payments").select("id, amount_paid, payment_date, created_at").in("loan_id", loanIds);
+      const { data: interestPayments, error: interestError } = await supabase
+        .from("interest_payments")
+        .select("id, amount_paid, payment_date, created_at")
+        .in("loan_id", loanIds);
 
-      if (interestError) console.error("Error fetching interest payments for activity:", interestError);
+      if (interestError)
+        console.error(
+          "Error fetching interest payments for activity:",
+          interestError
+        );
       else if (interestPayments) {
-        activities = activities.concat(interestPayments.map(p => {
+        activities = activities.concat(
+          interestPayments.map((p) => {
             return {
-              id: `int-${p.id}`, title: "Interest Payment",
+              id: `int-${p.id}`,
+              title: "Interest Payment",
               date: p.payment_date || p.created_at,
               created_at: p.created_at,
-              amount: p.amount_paid, type: "success"
+              amount: p.amount_paid,
+              type: "success",
             };
-        }));
+          })
+        );
       }
 
-      const { data: repayments, error: repaymentError } = await supabase.from("repayments").select("id, amount_paid, paid_at, updated_at, created_at").in("loan_id", loanIds);
+      const { data: repayments, error: repaymentError } = await supabase
+        .from("repayments")
+        .select("id, amount_paid, paid_at, updated_at, created_at")
+        .in("loan_id", loanIds);
 
-      if (repaymentError) console.error("Error fetching repayments for activity:", repaymentError);
+      if (repaymentError)
+        console.error(
+          "Error fetching repayments for activity:",
+          repaymentError
+        );
       else if (repayments) {
-        activities = activities.concat(repayments.map(r => {
+        activities = activities.concat(
+          repayments.map((r) => {
             const activityDate = r.updated_at || r.paid_at || r.created_at;
             return {
-              id: `rep-${r.id}`, title: "Loan Repayment", date: activityDate,
-              created_at: activityDate, amount: r.amount_paid, type: "success"
+              id: `rep-${r.id}`,
+              title: "Loan Repayment",
+              date: activityDate,
+              created_at: activityDate,
+              amount: r.amount_paid,
+              type: "success",
             };
-        }));
+          })
+        );
       }
 
-      const { data: disbursements, error: disbursementError } = await supabase.from("disbursements").select("id, disbursement_amount, created_at").in("loan_id", loanIds);
+      const { data: disbursements, error: disbursementError } = await supabase
+        .from("disbursements")
+        .select("id, disbursement_amount, created_at")
+        .in("loan_id", loanIds);
 
-      if (disbursementError) console.error("Error fetching disbursements for activity:", disbursementError);
+      if (disbursementError)
+        console.error(
+          "Error fetching disbursements for activity:",
+          disbursementError
+        );
       else if (disbursements) {
-        activities = activities.concat(disbursements.map(d => ({
-            id: `dis-${d.id}`, title: "Loan Disbursement", date: d.created_at,
-            created_at: d.created_at, amount: d.disbursement_amount, type: "danger"
-        })));
+        activities = activities.concat(
+          disbursements.map((d) => ({
+            id: `dis-${d.id}`,
+            title: "Loan Disbursement",
+            date: d.created_at,
+            created_at: d.created_at,
+            amount: d.disbursement_amount,
+            type: "danger",
+          }))
+        );
       }
 
-      activities = activities.filter(a => a.amount > 0);
+      activities = activities.filter((a) => a.amount > 0);
 
       activities.sort((a, b) => {
         const dateA = new Date(a.created_at);
@@ -664,9 +760,9 @@ export default function MemberProfile() {
     fetchAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memberId]);
-  
+
   // ... rest of the component
-  
+
   if (loading) {
     return (
       <div className="flex h-screen bg-background">
@@ -990,7 +1086,8 @@ export default function MemberProfile() {
                                   : "text-red-600"
                               }`}
                             >
-                              {item.type === "success" ? "+" : "-"}₦{item.amount.toLocaleString()}
+                              {item.type === "success" ? "+" : "-"}₦
+                              {item.amount.toLocaleString()}
                             </span>
                           </div>
                         ))
@@ -1013,73 +1110,112 @@ export default function MemberProfile() {
                   <CardContent className="space-y-6">
                     {activeLoans.length > 0 ? (
                       activeLoans.map((loan, i) => {
-                         const loanAmount = loan.loan_amount ?? loan.amount ?? 0;
-                         const loanRepaid = loan.repayments ? loan.repayments.reduce((acc: number, curr: Repayment) => acc + (curr.amount_paid ?? 0), 0) : 0;
-                         const remaining = Math.max(0, loanAmount - loanRepaid);
-                         const progress = loanAmount > 0 ? (loanRepaid / loanAmount) * 100 : 0;
-                         
-                         const disbursedDate = loan.disbursements?.[0]?.created_at || loan.created_at;
-                         const startDue = disbursedDate ? addMonths(new Date(disbursedDate), 1) : new Date();
-                         const tenure = loan.tenure || 0;
-                         
-                         let nextDueDate = new Date(startDue);
-                         const now = new Date();
-                         let monthsCount = 0;
-                         
-                         while(isBefore(nextDueDate, now) && monthsCount < tenure) {
-                            nextDueDate = addMonths(nextDueDate, 1);
-                            monthsCount++;
-                         }
-                         
-                         const monthlyPrincipal = tenure > 0 ? loanAmount / tenure : 0;
+                        const loanAmount = loan.loan_amount ?? loan.amount ?? 0;
+                        const loanRepaid = loan.repayments
+                          ? loan.repayments.reduce(
+                              (acc: number, curr: Repayment) =>
+                                acc + (curr.amount_paid ?? 0),
+                              0
+                            )
+                          : 0;
+                        const remaining = Math.max(0, loanAmount - loanRepaid);
+                        const progress =
+                          loanAmount > 0 ? (loanRepaid / loanAmount) * 100 : 0;
 
-                         return (
-                            <div key={loan.id} className={i > 0 ? "pt-6 border-t" : ""}>
-                                <div className="space-y-2 mb-6">
-                                  <div className="flex justify-between text-xs text-muted-foreground">
-                                    <span>Loan #{loan.id.substring(0, 6)}...</span>
-                                    <span>Tenure: {tenure} months</span>
-                                  </div>
-                                  <div className="flex justify-between text-xs text-muted-foreground">
-                                    <span>Paid: ₦{loanRepaid.toLocaleString()}</span>
-                                    <span>Remaining: ₦{remaining.toLocaleString()}</span>
-                                  </div>
-                                  <Progress value={progress} className="h-2 bg-gray-100" />
-                                </div>
+                        const disbursedDate =
+                          loan.disbursements?.[0]?.created_at ||
+                          loan.created_at;
+                        const startDue = disbursedDate
+                          ? addMonths(new Date(disbursedDate), 1)
+                          : new Date();
+                        const tenure = loan.tenure || 0;
 
-                                <div className="grid grid-cols-2 gap-y-6 gap-x-4">
-                                  <div>
-                                    <p className="text-xs text-muted-foreground mb-1">
-                                      Loan Disbursement Date
-                                    </p>
-                                    <p className="font-medium text-sm">{disbursedDate ? format(new Date(disbursedDate), "dd-MM-yyyy") : "N/A"}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-muted-foreground mb-1">
-                                      Next Due Date
-                                    </p>
-                                    <p className="font-medium text-sm">{format(nextDueDate, "dd-MM-yyyy")}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-muted-foreground mb-1">
-                                      Monthly Payment (Principal)
-                                    </p>
-                                    <p className="font-medium text-sm">₦{Math.ceil(monthlyPrincipal).toLocaleString()}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-muted-foreground mb-1">
-                                      Interest Rate
-                                    </p>
-                                    <p className="font-medium text-sm">{loan.interest_rate}%</p>
-                                  </div>
-                                </div>
+                        let nextDueDate = new Date(startDue);
+                        const now = new Date();
+                        let monthsCount = 0;
+
+                        while (
+                          isBefore(nextDueDate, now) &&
+                          monthsCount < tenure
+                        ) {
+                          nextDueDate = addMonths(nextDueDate, 1);
+                          monthsCount++;
+                        }
+
+                        const monthlyPrincipal =
+                          tenure > 0 ? loanAmount / tenure : 0;
+
+                        return (
+                          <div
+                            key={loan.id}
+                            className={i > 0 ? "pt-6 border-t" : ""}
+                          >
+                            <div className="space-y-2 mb-6">
+                              <div className="flex justify-between text-xs text-muted-foreground">
+                                <span>Loan #{loan.id.substring(0, 6)}...</span>
+                                <span>Tenure: {tenure} months</span>
+                              </div>
+                              <div className="flex justify-between text-xs text-muted-foreground">
+                                <span>
+                                  Paid: ₦{loanRepaid.toLocaleString()}
+                                </span>
+                                <span>
+                                  Remaining: ₦{remaining.toLocaleString()}
+                                </span>
+                              </div>
+                              <Progress
+                                value={progress}
+                                className="h-2 bg-gray-100"
+                              />
                             </div>
-                         );
+
+                            <div className="grid grid-cols-2 gap-y-6 gap-x-4">
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-1">
+                                  Loan Disbursement Date
+                                </p>
+                                <p className="font-medium text-sm">
+                                  {disbursedDate
+                                    ? format(
+                                        new Date(disbursedDate),
+                                        "dd-MM-yyyy"
+                                      )
+                                    : "N/A"}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-1">
+                                  Next Due Date
+                                </p>
+                                <p className="font-medium text-sm">
+                                  {format(nextDueDate, "dd-MM-yyyy")}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-1">
+                                  Monthly Payment (Principal)
+                                </p>
+                                <p className="font-medium text-sm">
+                                  ₦
+                                  {Math.ceil(monthlyPrincipal).toLocaleString()}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-1">
+                                  Interest Rate
+                                </p>
+                                <p className="font-medium text-sm">
+                                  {loan.interest_rate}%
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
                       })
                     ) : (
-                        <div className="text-center text-sm text-muted-foreground py-4">
-                            No active loans found.
-                        </div>
+                      <div className="text-center text-sm text-muted-foreground py-4">
+                        No active loans found.
+                      </div>
                     )}
                   </CardContent>
                 </Card>
@@ -1119,10 +1255,11 @@ export default function MemberProfile() {
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground">
-                          Email
-                        </p>
-                        <p className="text-sm font-medium truncate" title={member.email || ""}>
+                        <p className="text-xs text-muted-foreground">Email</p>
+                        <p
+                          className="text-sm font-medium truncate"
+                          title={member.email || ""}
+                        >
                           {member.email || "N/A"}
                         </p>
                       </div>
@@ -1143,9 +1280,7 @@ export default function MemberProfile() {
                         </p>
                       </div>
                       <div className="col-span-2">
-                        <p className="text-xs text-muted-foreground">
-                          Address
-                        </p>
+                        <p className="text-xs text-muted-foreground">Address</p>
                         <p className="text-sm font-medium">
                           {member.location || "N/A"}
                         </p>
@@ -1166,13 +1301,17 @@ export default function MemberProfile() {
                         <p className="text-xs text-muted-foreground">
                           Nominee Name
                         </p>
-                        <p className="text-sm font-medium">{member.nominee_name || "N/A"}</p>
+                        <p className="text-sm font-medium">
+                          {member.nominee_name || "N/A"}
+                        </p>
                       </div>
                       <div className="col-span-2">
                         <p className="text-xs text-muted-foreground">
                           Phone Number
                         </p>
-                        <p className="text-sm font-medium">{member.nominee_phone || "N/A"}</p>
+                        <p className="text-sm font-medium">
+                          {member.nominee_phone || "N/A"}
+                        </p>
                       </div>
                     </div>
                   </CardContent>
@@ -1182,20 +1321,26 @@ export default function MemberProfile() {
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-base flex items-center gap-2">
-                        <User className="h-4 w-4" /> Third Party Borrower Information
+                        <User className="h-4 w-4" /> Third Party Borrower
+                        Information
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {activeLoans
                         .filter((l: Loan) => l.third_party_name)
                         .map((loan: Loan, index: number) => (
-                          <div key={loan.id} className={index > 0 ? "pt-4 border-t" : ""}>
+                          <div
+                            key={loan.id}
+                            className={index > 0 ? "pt-4 border-t" : ""}
+                          >
                             <div className="grid grid-cols-2 gap-4">
                               <div>
                                 <p className="text-xs text-muted-foreground">
                                   Full Name
                                 </p>
-                                <p className="text-sm font-medium">{loan.third_party_name}</p>
+                                <p className="text-sm font-medium">
+                                  {loan.third_party_name}
+                                </p>
                               </div>
                               <div>
                                 <p className="text-xs text-muted-foreground">
@@ -1224,13 +1369,17 @@ export default function MemberProfile() {
                         <p className="text-xs text-muted-foreground">
                           Account Number
                         </p>
-                        <p className="text-sm font-medium">{member.account_number || "N/A"}</p>
+                        <p className="text-sm font-medium">
+                          {member.account_number || "N/A"}
+                        </p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">
                           Bank Name
                         </p>
-                        <p className="text-sm font-medium">{member.bank_name || "N/A"}</p>
+                        <p className="text-sm font-medium">
+                          {member.bank_name || "N/A"}
+                        </p>
                       </div>
                     </div>
                   </CardContent>
@@ -1259,31 +1408,37 @@ export default function MemberProfile() {
                     <TableBody>
                       {interestHistory.length > 0 ? (
                         interestHistory.map((item, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{item.month}</TableCell>
-                          <TableCell>{item.amount}</TableCell>
-                          <TableCell>{item.date}</TableCell>
-                          <TableCell>{item.method}</TableCell>
-                          <TableCell>
-                            <Badge
-                              className={`rounded-full px-3 font-normal capitalize ${
-                                item.status === "overdue"
-                                  ? "bg-red-600 hover:bg-red-700"
-                                  : item.status === "active" || item.status === "paid"
-                                  ? "bg-black hover:bg-black"
-                                  : "bg-gray-200 text-gray-700"
-                              }`}
-                            >
-                              {item.status === "active" ? "Paid" : item.status} 
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                          <TableRow key={index}>
+                            <TableCell>{item.month}</TableCell>
+                            <TableCell>{item.amount}</TableCell>
+                            <TableCell>{item.date}</TableCell>
+                            <TableCell>{item.method}</TableCell>
+                            <TableCell>
+                              <Badge
+                                className={`rounded-full px-3 font-normal capitalize ${
+                                  item.status === "overdue"
+                                    ? "bg-red-600 hover:bg-red-700"
+                                    : item.status === "active" ||
+                                      item.status === "paid"
+                                    ? "bg-black hover:bg-black"
+                                    : "bg-gray-200 text-gray-700"
+                                }`}
+                              >
+                                {item.status === "active"
+                                  ? "Paid"
+                                  : item.status}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))
                       ) : (
                         <TableRow>
-                            <TableCell colSpan={5} className="text-center text-muted-foreground py-6">
-                                No interest history found.
-                            </TableCell>
+                          <TableCell
+                            colSpan={5}
+                            className="text-center text-muted-foreground py-6"
+                          >
+                            No interest history found.
+                          </TableCell>
                         </TableRow>
                       )}
                     </TableBody>
@@ -1296,9 +1451,9 @@ export default function MemberProfile() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-base">Loan History</CardTitle>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="h-8"
                     onClick={() => router.push("/loans/applications")}
                   >
@@ -1322,25 +1477,46 @@ export default function MemberProfile() {
                       {loanHistory.length > 0 ? (
                         loanHistory.map((loan) => {
                           const amount = loan.loan_amount ?? loan.amount ?? 0;
-                          const disbursedDate = loan.disbursements?.[0]?.created_at || loan.created_at;
-                          const paid = loan.repayments?.reduce((sum: number, r: Repayment) => sum + (r.amount_paid || 0), 0) || 0;
+                          const disbursedDate =
+                            loan.disbursements?.[0]?.created_at ||
+                            loan.created_at;
+                          const paid =
+                            loan.repayments?.reduce(
+                              (sum: number, r: Repayment) =>
+                                sum + (r.amount_paid || 0),
+                              0
+                            ) || 0;
                           const remaining = Math.max(0, amount - paid);
-                          
+
                           return (
                             <TableRow key={loan.id}>
-                              <TableCell className="font-medium capitalize">{loan.state || "Unknown"}</TableCell>
+                              <TableCell className="font-medium capitalize">
+                                {loan.state || "Unknown"}
+                              </TableCell>
                               <TableCell>₦{amount.toLocaleString()}</TableCell>
-                              <TableCell>{disbursedDate ? format(new Date(disbursedDate), "dd-MM-yyyy") : "N/A"}</TableCell>
+                              <TableCell>
+                                {disbursedDate
+                                  ? format(
+                                      new Date(disbursedDate),
+                                      "dd-MM-yyyy"
+                                    )
+                                  : "N/A"}
+                              </TableCell>
                               <TableCell>{loan.tenure} months</TableCell>
                               <TableCell>{loan.interest_rate}%</TableCell>
                               <TableCell>₦{paid.toLocaleString()}</TableCell>
-                              <TableCell>₦{remaining.toLocaleString()}</TableCell>
+                              <TableCell>
+                                ₦{remaining.toLocaleString()}
+                              </TableCell>
                             </TableRow>
                           );
                         })
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
+                          <TableCell
+                            colSpan={7}
+                            className="text-center text-muted-foreground py-6"
+                          >
                             No loan history found.
                           </TableCell>
                         </TableRow>
@@ -1389,9 +1565,7 @@ export default function MemberProfile() {
                       <TableHeader>
                         <TableRow>
                           <TableHead className="w-[25%]">Type</TableHead>
-                          <TableHead className="w-[40%]">
-                            Description
-                          </TableHead>
+                          <TableHead className="w-[40%]">Description</TableHead>
                           <TableHead className="w-[15%] text-right">
                             Amount
                           </TableHead>
@@ -1504,10 +1678,7 @@ export default function MemberProfile() {
             <TabsContent value="notes" className="space-y-6">
               <div className="flex justify-between items-center">
                 <h2 className="text-lg font-medium">Member Notes</h2>
-                <Dialog
-                  open={noteDialogOpen}
-                  onOpenChange={setNoteDialogOpen}
-                >
+                <Dialog open={noteDialogOpen} onOpenChange={setNoteDialogOpen}>
                   <DialogTrigger asChild>
                     <Button variant="outline" size="sm" className="h-9">
                       <Plus className="h-4 w-4 mr-2" /> Add Note
@@ -1559,7 +1730,9 @@ export default function MemberProfile() {
                           </div>
                           {note.source === "member_notes" && (
                             <AlertDialog
-                              open={deleteDialogOpen && noteToDelete === note.id}
+                              open={
+                                deleteDialogOpen && noteToDelete === note.id
+                              }
                               onOpenChange={setDeleteDialogOpen}
                             >
                               <AlertDialogTrigger asChild>
@@ -1619,18 +1792,24 @@ export default function MemberProfile() {
           </Tabs>
 
           {/* Footer Warning */}
-          {(pendingInterest != null && pendingInterest > 0 || missedRepayment > 100) && (
-          <div className="flex items-center gap-2 p-4 bg-orange-50 border border-orange-100 rounded-lg text-orange-600 text-sm">
-            <AlertCircle className="h-4 w-4" />
-            <span>
-              { (pendingInterest != null && pendingInterest > 0) && missedRepayment > 100 
-                  ? `This member has pending interest fees (₦${(pendingInterest || 0).toLocaleString()}) and missed loan installments (₦${missedRepayment.toLocaleString()}). Please follow up.`
-                  : (pendingInterest != null && pendingInterest > 0) 
-                      ? `This member has pending interest fee payment(s) of ₦${(pendingInterest || 0).toLocaleString()}. Please follow up.`
-                      : `This member has missed loan installment(s) of ₦${missedRepayment.toLocaleString()}. Please follow up.`
-              }
-            </span>
-          </div>
+          {((pendingInterest != null && pendingInterest > 0) ||
+            missedRepayment > 100) && (
+            <div className="flex items-center gap-2 p-4 bg-orange-50 border border-orange-100 rounded-lg text-orange-600 text-sm">
+              <AlertCircle className="h-4 w-4" />
+              <span>
+                {pendingInterest != null &&
+                pendingInterest > 0 &&
+                missedRepayment > 100
+                  ? `This member has pending interest fees (₦${(
+                      pendingInterest || 0
+                    ).toLocaleString()}) and missed loan installments (₦${missedRepayment.toLocaleString()}). Please follow up.`
+                  : pendingInterest != null && pendingInterest > 0
+                  ? `This member has pending interest fee payment(s) of ₦${(
+                      pendingInterest || 0
+                    ).toLocaleString()}. Please follow up.`
+                  : `This member has missed loan installment(s) of ₦${missedRepayment.toLocaleString()}. Please follow up.`}
+              </span>
+            </div>
           )}
         </div>
 

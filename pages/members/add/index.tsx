@@ -166,6 +166,11 @@ function AddMemberForm() {
             bank_name: formData.bank_name,
             status: "inactive",
             added_by: user?.id, // Capture the current user's ID
+            added_by_name:
+              user?.user_metadata?.full_name ||
+              user?.user_metadata?.name ||
+              user?.email ||
+              "System",
           },
         ])
         .select()
