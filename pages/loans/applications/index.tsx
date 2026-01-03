@@ -749,10 +749,11 @@ function LoanApplicationForm() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-3">
-                      <label className="text-sm font-medium">
+                      <label className="text-sm font-medium" htmlFor="agreement-file">
                         Collateral Documents
                       </label>
                       <input
+                        id="agreement-file"
                         type="file"
                         ref={collateralFileRef}
                         className="hidden"
@@ -791,10 +792,11 @@ function LoanApplicationForm() {
                     </div>
 
                     <div className="space-y-3">
-                      <label className="text-sm font-medium">
+                      <label className="text-sm font-medium" htmlFor="agreement-file">
                         Loan Agreement
                       </label>
                       <input
+                        id="agreement-file"
                         type="file"
                         ref={agreementFileRef}
                         className="hidden"

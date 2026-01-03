@@ -42,15 +42,15 @@ export function NewApplications() {
         console.error("Error fetching applications:", error)
       } else {
         const mappedApps: Application[] = (data || []).map(loan => {
-          // Check if disbursed:
-          // 1. Check if disbursements array is not empty (eager loaded relationship)
-          // 2. OR check if loan state is 'active' or 'disbursed'
-          const hasDisbursementRecord = loan.disbursements && loan.disbursements.length > 0;
-          const isStateDisbursed = loan.state === 'active' || loan.state === 'disbursed';
-          
+          const hasDisbursementRecord = loan.disbursements && loan.disbursements.length > 0
+          const isStateDisbursed = loan.state === 'active' || loan.state === 'disbursed'
+
+          const member = Array.isArray(loan.member) ? loan.member[0] : loan.member
+          const memberName = member?.full_name || member?.name || "Unknown Member"
+
           return {
             id: loan.id,
-            name: loan.member?.full_name || loan.member?.name || "Unknown Member",
+            name: memberName,
             date: loan.created_at,
             amount: loan.loan_amount,
             isDisbursed: hasDisbursementRecord || isStateDisbursed
@@ -97,7 +97,10 @@ export function NewApplications() {
                   <p className="text-xs md:text-sm font-semibold text-foreground truncate">{app.name}</p>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <p className="text-xs text-muted-foreground">{dateText}</p>
-                    <Badge variant={app.isDisbursed ? "default" : "secondary"} className={`text-[9px] md:text-[10px] h-5 ${app.isDisbursed ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100'}`}>
+                    <Badge
+                      variant={app.isDisbursed ? "default" : "secondary"}
+                      className={`text-[9px] md:text-[10px] h-5 ${app.isDisbursed ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100'}`}
+                    >
                       {app.isDisbursed ? 'Disbursed' : 'Not Disbursed'}
                     </Badge>
                   </div>
