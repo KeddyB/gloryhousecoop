@@ -50,7 +50,7 @@ export default async function handler(
     }
 
     return res.status(200).json({ message: 'Member deleted successfully' })
-  } catch (err: any) {
+  } catch (err) {
     console.error('Unexpected error:', err)
     return res.status(500).json({ message: 'Internal server error' })
   }

@@ -40,7 +40,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import { Member } from "../types";
+import { Member } from "@/lib/types/members";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EditProfileDialog } from "@/components/edit-profile-dialog";
 import { ViewProfileDialog } from "@/components/view-profile-dialog";

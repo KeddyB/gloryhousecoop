@@ -11,9 +11,10 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { useRouter } from "next/router"
+import { Member } from "@/lib/types/members"
 
 interface ViewProfileDialogProps {
-  member: any
+  member: Member | null
   open: boolean
   onOpenChange: (open: boolean) => void
 }
@@ -23,7 +24,7 @@ export function ViewProfileDialog({ member, open, onOpenChange }: ViewProfileDia
   
   if (!member) return null
 
-  const fullName = member.name || `${member.first_name || ''} ${member.last_name || ''}`.trim()
+  const fullName = member.name || member.full_name || ''
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -69,7 +70,7 @@ export function ViewProfileDialog({ member, open, onOpenChange }: ViewProfileDia
             </div>
             <div className="space-y-1">
               <Label className="text-xs font-medium text-muted-foreground">Residential Address</Label>
-              <p className="text-sm font-medium">{member.address || member.location || 'N/A'}</p>
+              <p className="text-sm font-medium">{member.location || 'N/A'}</p>
             </div>
           </div>
           

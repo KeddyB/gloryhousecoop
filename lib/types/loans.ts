@@ -1,4 +1,4 @@
-import { Member } from "../members/types";
+import { Member } from "../types/members";
 
 export type LoanState =
   | "pending"

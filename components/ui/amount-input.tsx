@@ -36,7 +36,7 @@ export function AmountInput({
     if (formatted !== displayValue) {
       setDisplayValue(formatted);
     }
-  }, [value]);
+  }, [value, displayValue]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawValue = e.target.value;

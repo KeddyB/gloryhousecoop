@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useLayoutEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/utils/supabase/client"
@@ -16,73 +16,78 @@ import {
   UserPlus,
   Plus,
   List,
-  CheckCircle,
   RotateCcw,
-  Building2,
   Calculator,
-  FileText,
   WalletCards,
   X,
 } from "lucide-react"
+import { User } from "@supabase/supabase-js"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 export function Sidebar() {
   const router = useRouter()
   const pathname = usePathname()
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const [expandedItems, setExpandedItems] = useState<string[]>(["Dashboard"])
   const [isOpen, setIsOpen] = useState(true)
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [isMobile, setIsMobile] = useState(false)
 
-  const menuItems = [
-    {
-      id: "Dashboard",
-      label: "Dashboard",
-      icon: LayoutGrid,
-      href: "/dashboard",
-      // No submenu
-    },
-    {
-      id: "Members",
-      label: "Members",
-      icon: Users,
-      submenu: [
-        { label: "Members List", icon: List, href: "/members/list" },
-        { label: "Add Members", icon: UserPlus, href: "/members/add" },
-      ],
-    },
-    {
-      id: "Interest Fees",
-      label: "Interest Fees",
-      icon: DollarSign,
-      submenu: [
-        { label: "Fee Entry", icon: Plus, href: "/fees/entry" },
-        { label: "Fee List", icon: List, href: "/fees/list" },
-      ],
-    },
-    {
-      id: "Loan Management",
-      label: "Loan Management",
-      icon: WalletCards,
-      submenu: [
-        { label: "Applications", icon: Plus, href: "/loans/applications" },
-        { label: "Disbursement", icon: Banknote, href: "/loans/disbursement" },
-        { label: "Loan list", icon: List, href: "/loans/list" },
-        { label: "Repayment", icon: RotateCcw, href: "/loans/repayment" },
-        { label: "Calculator", icon: Calculator, href: "/loans/calculator" },
-      ],
-    },
-    // Reports removed
-    {
-      id: "Settings",
-      label: "Settings",
-      icon: Settings,
-      href: "/settings",
-      // No submenu
-    },
-  ]
+  const menuItems = useMemo(
+    () => [
+      {
+        id: "Dashboard",
+        label: "Dashboard",
+        icon: LayoutGrid,
+        href: "/dashboard",
+        // No submenu
+      },
+      {
+        id: "Members",
+        label: "Members",
+        icon: Users,
+        submenu: [
+          { label: "Members List", icon: List, href: "/members/list" },
+          { label: "Add Members", icon: UserPlus, href: "/members/add" },
+        ],
+      },
+      {
+        id: "Interest Fees",
+        label: "Interest Fees",
+        icon: DollarSign,
+        submenu: [
+          { label: "Fee Entry", icon: Plus, href: "/fees/entry" },
+          { label: "Fee List", icon: List, href: "/fees/list" },
+        ],
+      },
+      {
+        id: "Loan Management",
+        label: "Loan Management",
+        icon: WalletCards,
+        submenu: [
+          { label: "Applications", icon: Plus, href: "/loans/applications" },
+          {
+            label: "Disbursement",
+            icon: Banknote,
+            href: "/loans/disbursement",
+          },
+          { label: "Loan list", icon: List, href: "/loans/list" },
+          { label: "Repayment", icon: RotateCcw, href: "/loans/repayment" },
+          { label: "Calculator", icon: Calculator, href: "/loans/calculator" },
+        ],
+      },
+      // Reports removed
+      {
+        id: "Settings",
+        label: "Settings",
+        icon: Settings,
+        href: "/settings",
+        // No submenu
+      },
+    ],
+    [],
+  )
 
   // Handle Mobile Check and Initial State
   useEffect(() => {
@@ -104,31 +109,42 @@ export function Sidebar() {
   }, [])
 
   // Automatically expand the section if a submenu item is active
-  useEffect(() => {
-    menuItems.forEach((item) => {
-      if (item.submenu?.some((sub) => sub.href === pathname)) {
-        if (!expandedItems.includes(item.id)) {
-          setExpandedItems((prev) => [...prev, item.id])
-        }
-      }
-    })
-  }, [pathname])
+ useLayoutEffect(() => {
+  const activeItem = menuItems.find((item) =>
+    item.submenu?.some((sub) => sub.href === pathname)
+  )
+
+  if (activeItem) {
+    const id = setTimeout(() => {
+      setExpandedItems((prev) => {
+        if (prev.includes(activeItem.id)) return prev
+        return [...prev, activeItem.id]
+      })
+    }, 0)
+
+    return () => clearTimeout(id)
+  }
+}, [pathname, menuItems])
+
 
   // Close sidebar on route change on mobile
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isMobile) {
-        setIsOpen(false)
+      const id = setTimeout(() => setIsOpen(false), 0)
+      return () => clearTimeout(id)
     }
   }, [pathname, isMobile])
 
   // Fetch current user
   useEffect(() => {
     const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
       setUser(user)
     }
     getUser()
-  }, [])
+  }, [supabase.auth])
 
   const toggleExpand = (item: string) => {
     setExpandedItems((prev) => (prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]))

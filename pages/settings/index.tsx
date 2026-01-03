@@ -1,12 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Sidebar } from "@/components/sidebar"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 import { Plus, Trash2, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -31,10 +30,17 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createClient } from "@/utils/supabase/client"
 
+interface User {
+  id: string;
+  name: string;
+  email?: string;
+}
+
+const supabase = createClient()
+
 export default function SettingsPage() {
-  const [users, setUsers] = useState<any[]>([])
+  const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
   
   // Add User State
   const [isAddUserOpen, setIsAddUserOpen] = useState(false)
@@ -54,7 +60,7 @@ export default function SettingsPage() {
   // Annual Data State
   const [totalMembers, setTotalMembers] = useState<string | null>(null)
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const res = await fetch('/api/list-users')
       if (!res.ok) throw new Error('Failed to fetch users')
@@ -66,9 +72,9 @@ export default function SettingsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const fetchMemberCount = async () => {
+  const fetchMemberCount = useCallback(async () => {
     try {
       const { count } = await supabase.from('members').select('*', { count: 'exact', head: true })
       if (count !== null) {
@@ -80,12 +86,12 @@ export default function SettingsPage() {
       console.error(error)
       setTotalMembers("0")
     }
-  }
+  }, [])
 
   useEffect(() => {
     fetchUsers()
     fetchMemberCount()
-  }, [])
+  }, [fetchUsers, fetchMemberCount])
 
   const handleDeleteClick = (id: string) => {
     setUserToDelete(id)
@@ -104,9 +110,10 @@ export default function SettingsPage() {
       toast.success("User deleted successfully")
       // Remove from local state immediately
       setUsers(prev => prev.filter(u => u.id !== userToDelete))
-    } catch (error: any) {
+    } catch (error) {
       console.error(error)
-      toast.error(error.message || "Failed to delete user")
+      const errorMessage = error instanceof Error ? error.message : "Failed to delete user";
+      toast.error(errorMessage)
     } finally {
       setIsDeleting(false)
       setDeleteDialogOpen(false)
@@ -151,10 +158,11 @@ export default function SettingsPage() {
       toast.success("User created successfully")
       setIsAddUserOpen(false)
       setNewUser({ username: '', email: '', password: '', confirmPassword: '' })
-      fetchUsers() // Refresh list
-    } catch (error: any) {
+      await fetchUsers() // Refresh list
+    } catch (error) {
       console.error(error)
-      toast.error(error.message || "Failed to create user")
+      const errorMessage = error instanceof Error ? error.message : "Failed to create user";
+      toast.error(errorMessage)
     } finally {
       setIsCreating(false)
     }

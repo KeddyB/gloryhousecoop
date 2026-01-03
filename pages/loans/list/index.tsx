@@ -34,9 +34,9 @@ import {
 import { createClient } from "@/utils/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Loan, LoanState } from "../../lib/types/loans";
+import { Loan, LoanState } from "@/lib/types/loans";
 import { format } from "date-fns";
-import { cn, formatCurrencyShort } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 export default function LoanListPage() {
   const [searchTerm, setSearchTerm] = useState("");

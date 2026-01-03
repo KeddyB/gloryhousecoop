@@ -19,6 +19,39 @@ interface Transaction {
   type: 'disbursement' | 'repayment' | 'interest'
 }
 
+interface NestedMember {
+  full_name: string | null
+  name: string | null
+}
+
+interface NestedLoan {
+  member: NestedMember[] | null
+}
+
+interface DisbursementRecord {
+  id: string
+  disbursement_amount: number
+  created_at: string
+  loan: NestedLoan[] | null
+}
+
+interface RepaymentRecord {
+  id: string
+  amount_paid: number
+  updated_at: string | null
+  paid_at: string | null
+  created_at: string | null
+  loan: NestedLoan[] | null
+}
+
+interface InterestPaymentRecord {
+  id: string
+  amount_paid: number
+  created_at: string
+  loan: NestedLoan[] | null
+}
+
+
 export function RecentTransactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -107,10 +140,10 @@ export function RecentTransactions() {
     if (interestError) console.error("Error fetching interest payments:", interestError)
 
     // Process and combine
-    const disbursementTransactions: Transaction[] = (disbursements || []).map(d => ({
+    const disbursementTransactions: Transaction[] = ((disbursements as DisbursementRecord[]) || []).map(d => ({
       id: d.id,
       title: "Loan Disbursement",
-      name: (d.loan as any)?.member?.full_name || (d.loan as any)?.member?.name || "Unknown Member",
+      name: d.loan?.member?.full_name || d.loan?.member?.name || "Unknown Member",
       amount: d.disbursement_amount,
       status: "Completed",
       date: d.created_at,
@@ -118,10 +151,10 @@ export function RecentTransactions() {
       type: 'disbursement'
     }))
 
-    const repaymentTransactions: Transaction[] = (repayments || []).map(r => ({
+    const repaymentTransactions: Transaction[] = ((repayments as RepaymentRecord[]) || []).map(r => ({
       id: r.id,
       title: "Loan Repayment",
-      name: (r.loan as any)?.member?.full_name || (r.loan as any)?.member?.name || "Unknown Member",
+      name: r.loan?.member?.full_name || r.loan?.member?.name || "Unknown Member",
       amount: r.amount_paid,
       status: "Completed",
       // Use updated_at as primary date source
@@ -130,10 +163,10 @@ export function RecentTransactions() {
       type: 'repayment'
     }))
 
-    const interestTransactions: Transaction[] = (interestPayments || []).map(i => ({
+    const interestTransactions: Transaction[] = ((interestPayments as InterestPaymentRecord[]) || []).map(i => ({
       id: i.id,
       title: "Interest Payment",
-      name: (i.loan as any)?.member?.full_name || (i.loan as any)?.member?.name || "Unknown Member",
+      name: i.loan?.member?.full_name || i.loan?.member?.name || "Unknown Member",
       amount: i.amount_paid,
       status: "Completed",
       date: i.created_at || new Date().toISOString(),
@@ -153,7 +186,8 @@ export function RecentTransactions() {
 
   useEffect(() => {
     fetchTransactions()
-  }, [fetchTransactions])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleRetry = async () => {
     await fetchTransactions()
