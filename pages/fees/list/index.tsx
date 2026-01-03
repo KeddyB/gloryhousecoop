@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Sidebar } from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,9 +22,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Search, Loader2, CheckCircle2, Clock, AlertCircle, Banknote, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, CheckCircle2, Clock, AlertCircle, Banknote, ChevronLeft, ChevronRight } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import { format, startOfMonth, addMonths, isBefore, startOfDay, isSameMonth, isAfter, endOfMonth, parseISO } from "date-fns";
+import { format, startOfMonth, addMonths, isBefore } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -42,9 +42,64 @@ interface FeeRecord {
   created_at?: string;
 }
 
+interface Member {
+    id: string;
+    member_id: string;
+    name: string | null;
+    full_name: string | null;
+    phone: string | null;
+    avatar_url: string | null;
+}
+
+interface Disbursement {
+    created_at: string;
+}
+
+interface ActiveLoan {
+    id: string;
+    loan_amount: number;
+    interest_rate: number;
+    tenure: number;
+    created_at: string;
+    state: string;
+    member: Member | null;
+    disbursements: Disbursement[];
+}
+
+interface LoanForPayment {
+    id: string;
+    loan_amount: number;
+    interest_rate: number;
+    member: Member | null;
+}
+
+interface InterestPayment {
+    id: string;
+    amount_paid: number;
+    payment_for_month: string;
+    payment_date: string;
+    payment_method: string;
+    created_at: string;
+    loan: LoanForPayment | null;
+}
+
+type SupabaseMember = Member;
+
+interface SupabaseLoanForPayment extends Omit<LoanForPayment, 'member'> {
+  member: SupabaseMember[] | SupabaseMember | null;
+}
+
+interface SupabaseInterestPayment extends Omit<InterestPayment, 'loan'> {
+  loan: SupabaseLoanForPayment[] | SupabaseLoanForPayment | null;
+}
+
+interface SupabaseActiveLoan extends Omit<ActiveLoan, 'member'> {
+    member: SupabaseMember[] | SupabaseMember | null;
+}
+
 export default function FeeListPage() {
-  const [payments, setPayments] = useState<any[]>([]);
-  const [activeLoans, setActiveLoans] = useState<any[]>([]);
+  const [payments, setPayments] = useState<InterestPayment[]>([]);
+  const [activeLoans, setActiveLoans] = useState<ActiveLoan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -62,9 +117,8 @@ export default function FeeListPage() {
     totalCollected: 0,
   });
 
-  const supabase = createClient();
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
+    const supabase = createClient();
     setIsLoading(true);
     setError(null);
     try {
@@ -95,7 +149,15 @@ export default function FeeListPage() {
         .order('created_at', { ascending: false });
 
       if (paymentsResult.error) throw paymentsResult.error;
-      setPayments(paymentsResult.data || []);
+      const transformedPayments = (paymentsResult.data as SupabaseInterestPayment[] || []).map(p => {
+        const loan = Array.isArray(p.loan) ? p.loan[0] : p.loan;
+        if (loan) {
+            const member = Array.isArray(loan.member) ? loan.member[0] : loan.member;
+            return { ...p, loan: { ...loan, member } };
+        }
+        return { ...p, loan: null };
+      });
+      setPayments(transformedPayments);
 
       // 2. Fetch active loans to calculate Pending/Overdue
       const loansResult = await supabase
@@ -125,20 +187,28 @@ export default function FeeListPage() {
       if (loansResult.error) {
           console.error("Error fetching loans:", loansResult.error);
       } else {
-          setActiveLoans(loansResult.data || []);
+          const transformedLoans = (loansResult.data as SupabaseActiveLoan[] || []).map((l) => {
+            const member = Array.isArray(l.member) ? l.member[0] : l.member;
+            return { ...l, member };
+          });
+          setActiveLoans(transformedLoans);
       }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error fetching data:", error);
-      setError(error.message || "Failed to load data");
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError("An unknown error occurred while fetching data.");
+      }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const feeRecords = useMemo(() => {
     const records: FeeRecord[] = [];
@@ -161,7 +231,7 @@ export default function FeeListPage() {
             id: p.id,
             member_name: p.loan.member.full_name || p.loan.member.name || "Unknown",
             member_id: p.loan.member.member_id || "N/A",
-            member_avatar: p.loan.member.avatar_url,
+            // member_avatar: p.loan.member.avatar_url,
             month: new Date(p.payment_for_month),
             amount: p.amount_paid,
             pay_date: p.payment_date,
@@ -214,7 +284,7 @@ export default function FeeListPage() {
                   id: uniqueKey, // Virtual ID
                   member_name: loan.member.full_name || loan.member.name || "Unknown",
                   member_id: loan.member.member_id || "N/A",
-                  member_avatar: loan.member.avatar_url,
+                //   member_avatar: loan.member.avatar_url,
                   month: new Date(iterDate),
                   amount: monthlyInterest,
                   status: status,

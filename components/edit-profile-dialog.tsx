@@ -14,15 +14,25 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
+import { Member } from "@/lib/types/members"
 
 interface EditProfileDialogProps {
-  member: any
+  member: Member | null
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess?: () => void
 }
 
-export function EditProfileDialog({ member, open, onOpenChange, onSuccess }: EditProfileDialogProps) {
+interface ApiResponse {
+  message?: string
+}
+
+export function EditProfileDialog({
+  member,
+  open,
+  onOpenChange,
+  onSuccess,
+}: EditProfileDialogProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
@@ -35,35 +45,25 @@ export function EditProfileDialog({ member, open, onOpenChange, onSuccess }: Edi
   useEffect(() => {
     if (member && open) {
       setFormData({
-        name: member?.name || `${member?.first_name || ''} ${member?.last_name || ''}`.trim(),
+        name: member?.name || member?.full_name || '',
         email: member?.email || '',
         phone: member?.phone || '',
-        address: member?.address || member?.location || '',
+        address: member?.location || '',
       })
     }
   }, [member, open])
 
   const handleSave = async () => {
+    if (!member) return;
     setIsLoading(true)
     try {
-      const nameParts = formData.name.trim().split(' ')
-      const firstName = nameParts[0]
-      const lastName = nameParts.slice(1).join(' ')
-
       // Prepare updates object
       // Note: mapping 'address' form field to 'location' database column
-      // Removed 'updated_at' as the column does not exist
-      const updates: any = {
+      const updates: Partial<Member> = {
+        name: formData.name,
         email: formData.email,
         phone: formData.phone,
         location: formData.address,
-      }
-
-      if (member.name !== undefined) {
-          updates.name = formData.name
-      } else {
-          updates.first_name = firstName
-          updates.last_name = lastName
       }
 
       // Use API route to bypass RLS
@@ -78,7 +78,7 @@ export function EditProfileDialog({ member, open, onOpenChange, onSuccess }: Edi
         }),
       })
 
-      const result = await response.json()
+      const result: ApiResponse = await response.json()
 
       if (!response.ok) {
         throw new Error(result.message || 'Failed to update profile')
@@ -88,13 +88,15 @@ export function EditProfileDialog({ member, open, onOpenChange, onSuccess }: Edi
       onOpenChange(false)
       if (onSuccess) onSuccess()
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error updating profile:', error)
-      toast.error(error.message || "Failed to update profile")
+      toast.error(error instanceof Error ? error.message : "Failed to update profile")
     } finally {
       setIsLoading(false)
     }
   }
+  
+  if (!member) return null
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -102,7 +104,7 @@ export function EditProfileDialog({ member, open, onOpenChange, onSuccess }: Edi
         <DialogHeader className="p-6 pb-4 border-b">
           <DialogTitle className="text-xl font-semibold">Edit Profile</DialogTitle>
           <DialogDescription>
-            Update the member's personal information below.
+            Update the member&apos;s personal information below.
           </DialogDescription>
         </DialogHeader>
         

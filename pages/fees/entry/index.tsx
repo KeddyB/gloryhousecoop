@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback, type ElementType } from "react";
 import { Sidebar } from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,7 +84,100 @@ export default function InterestFeeEntryPage() {
   const supabase = createClient();
   const { toast } = useToast();
 
-  const fetchData = async () => {
+  const getLoanStartDate = useCallback((loan: LoanWithMember) => {
+    const disbursedDate = loan.disbursements?.[0]?.created_at || loan.created_at;
+    return addMonths(new Date(disbursedDate), 1);
+  }, []);
+
+  const getLoanEndDate = useCallback((loan: LoanWithMember) => {
+    const startDate = getLoanStartDate(loan);
+    return addMonths(startDate, loan.tenure);
+  }, [getLoanStartDate]);
+
+  const getUnpaidMonths = useCallback((loan: LoanWithMember) => {
+    const startDue = getLoanStartDate(loan);
+    const endDate = getLoanEndDate(loan);
+    const now = new Date();
+    const unpaidMonths: Date[] = [];
+    
+    let iterDate = startOfMonth(startDue);
+    const currentMonthStart = startOfMonth(now);
+
+    if (isBefore(currentMonthStart, iterDate)) {
+       return [];
+    }
+
+    let calculationLimit = addMonths(currentMonthStart, 1);
+    
+    if (isBefore(endDate, calculationLimit)) {
+       calculationLimit = endDate;
+    }
+
+    while (isBefore(iterDate, calculationLimit)) {
+      const isPaid = loan.interest_payments.some(p => 
+        isSameMonth(new Date(p.payment_for_month), iterDate)
+      );
+
+      if (!isPaid) {
+        unpaidMonths.push(new Date(iterDate));
+      }
+      iterDate = addMonths(iterDate, 1);
+    }
+
+    return unpaidMonths;
+  }, [getLoanStartDate, getLoanEndDate]);
+
+  const getPayableMonths = useCallback((loan: LoanWithMember) => {
+    const startDue = getLoanStartDate(loan);
+    const endDate = getLoanEndDate(loan);
+    const payableMonths: Date[] = [];
+    
+    let iterDate = startOfMonth(startDue);
+
+    while (isBefore(iterDate, endDate)) {
+      const isPaid = loan.interest_payments.some(p => 
+        isSameMonth(new Date(p.payment_for_month), iterDate)
+      );
+
+      if (!isPaid) {
+        payableMonths.push(new Date(iterDate));
+      }
+      iterDate = addMonths(iterDate, 1);
+    }
+
+    return payableMonths;
+  }, [getLoanStartDate, getLoanEndDate]);
+
+  const calculateStats = useCallback((loanData: LoanWithMember[]) => {
+    let todaySum = 0;
+    let monthSum = 0;
+    let pendingSum = 0;
+    const today = startOfDay(new Date());
+
+    loanData.forEach((loan) => {
+      const monthlyInterest = (loan.loan_amount * loan.interest_rate) / 100;
+      const unpaidMonths = getUnpaidMonths(loan);
+      pendingSum += unpaidMonths.length * monthlyInterest;
+
+      loan.interest_payments.forEach((payment) => {
+        const payDate = new Date(payment.payment_date);
+        
+        if (startOfDay(payDate).getTime() === today.getTime()) {
+          todaySum += payment.amount_paid;
+        }
+
+        if (isSameMonth(payDate, today)) {
+          monthSum += payment.amount_paid;
+        }
+      });
+    });
+
+    setTodaysCollection(todaySum);
+    setThisMonthCollection(monthSum);
+    setTotalPending(pendingSum);
+  }, [getUnpaidMonths]);
+
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
@@ -118,10 +211,17 @@ export default function InterestFeeEntryPage() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+      
+      type RawLoan = Omit<LoanWithMember, 'member'> & { member: LoanWithMember['member'] | LoanWithMember['member'][] | null };
 
-      setLoans((data as any) || []);
-      calculateStats((data as any) || []);
-    } catch (error: any) {
+      const transformedData = (data as RawLoan[] || []).map(loan => ({
+          ...loan,
+          member: Array.isArray(loan.member) ? loan.member[0] : loan.member
+      }));
+
+      setLoans(transformedData as LoanWithMember[]);
+      calculateStats(transformedData as LoanWithMember[]);
+    } catch (error) {
       console.error("Error fetching data:", error);
       toast({
         title: "Error",
@@ -131,104 +231,11 @@ export default function InterestFeeEntryPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [calculateStats, supabase, toast]);
 
   useEffect(() => {
     fetchData();
-  }, []);
-
-  const getLoanStartDate = (loan: LoanWithMember) => {
-    const disbursedDate = loan.disbursements?.[0]?.created_at || loan.created_at;
-    return addMonths(new Date(disbursedDate), 1);
-  };
-
-  const getLoanEndDate = (loan: LoanWithMember) => {
-    const startDate = getLoanStartDate(loan);
-    return addMonths(startDate, loan.tenure);
-  };
-
-  const getUnpaidMonths = (loan: LoanWithMember) => {
-    const startDue = getLoanStartDate(loan);
-    const endDate = getLoanEndDate(loan);
-    const now = new Date();
-    const unpaidMonths: Date[] = [];
-    
-    let iterDate = startOfMonth(startDue);
-    const currentMonthStart = startOfMonth(now);
-
-    if (isBefore(currentMonthStart, iterDate)) {
-       return [];
-    }
-
-    let calculationLimit = addMonths(currentMonthStart, 1);
-    
-    if (isBefore(endDate, calculationLimit)) {
-       calculationLimit = endDate;
-    }
-
-    while (isBefore(iterDate, calculationLimit)) {
-      const isPaid = loan.interest_payments.some(p => 
-        isSameMonth(new Date(p.payment_for_month), iterDate)
-      );
-
-      if (!isPaid) {
-        unpaidMonths.push(new Date(iterDate));
-      }
-      iterDate = addMonths(iterDate, 1);
-    }
-
-    return unpaidMonths;
-  };
-
-  const getPayableMonths = (loan: LoanWithMember) => {
-    const startDue = getLoanStartDate(loan);
-    const endDate = getLoanEndDate(loan);
-    const payableMonths: Date[] = [];
-    
-    let iterDate = startOfMonth(startDue);
-
-    while (isBefore(iterDate, endDate)) {
-      const isPaid = loan.interest_payments.some(p => 
-        isSameMonth(new Date(p.payment_for_month), iterDate)
-      );
-
-      if (!isPaid) {
-        payableMonths.push(new Date(iterDate));
-      }
-      iterDate = addMonths(iterDate, 1);
-    }
-
-    return payableMonths;
-  };
-
-  const calculateStats = (loanData: LoanWithMember[]) => {
-    let todaySum = 0;
-    let monthSum = 0;
-    let pendingSum = 0;
-    const today = startOfDay(new Date());
-
-    loanData.forEach((loan) => {
-      const monthlyInterest = (loan.loan_amount * loan.interest_rate) / 100;
-      const unpaidMonths = getUnpaidMonths(loan);
-      pendingSum += unpaidMonths.length * monthlyInterest;
-
-      loan.interest_payments.forEach((payment) => {
-        const payDate = new Date(payment.payment_date);
-        
-        if (startOfDay(payDate).getTime() === today.getTime()) {
-          todaySum += payment.amount_paid;
-        }
-
-        if (isSameMonth(payDate, today)) {
-          monthSum += payment.amount_paid;
-        }
-      });
-    });
-
-    setTodaysCollection(todaySum);
-    setThisMonthCollection(monthSum);
-    setTotalPending(pendingSum);
-  };
+  }, [fetchData]);
 
   const handleSubmitPayment = async () => {
     if (!selectedLoan || selectedMonths.length === 0) return;
@@ -262,10 +269,14 @@ export default function InterestFeeEntryPage() {
       fetchData(); 
       setSelectedLoan(null); 
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      let message = "An unexpected error occurred.";
+      if (error instanceof Error) {
+        message = error.message;
+      }
       toast({
         title: "Error",
-        description: error.message,
+        description: message,
         variant: "destructive",
       });
     } finally {
@@ -608,27 +619,7 @@ export default function InterestFeeEntryPage() {
   );
 }
 
-function CheckCircle2(props: any) {
-    return (
-      <svg
-        {...props}
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <circle cx="12" cy="12" r="10" />
-        <path d="m9 12 2 2 4-4" />
-      </svg>
-    )
-}
-
-function StatCard({ label, amount, icon: Icon, color, iconBg, borderColor }: { label: string, amount: number, icon: any, color: string, iconBg: string, borderColor: string }) {
+function StatCard({ label, amount, icon: Icon, color, iconBg, borderColor }: { label: string, amount: number, icon: ElementType, color: string, iconBg: string, borderColor: string }) {
   return (
     <Card className={cn("shadow-sm bg-card rounded-xl border", borderColor)}>
       <CardContent className="p-6 flex items-center justify-start gap-4">

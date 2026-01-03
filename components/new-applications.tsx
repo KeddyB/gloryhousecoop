@@ -85,7 +85,7 @@ export function NewApplications() {
       ) : (
         <div className="space-y-3 md:space-y-4">
           {applications.map((app) => {
-            const dateObj = new Date(app?.date as any)
+            const dateObj = new Date(app.date)
             const dateText = !isNaN(dateObj.getTime()) ? format(dateObj, 'MMM d, yyyy') : 'Unknown date'
 
             return (

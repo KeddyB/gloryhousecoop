@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { PieChart, Pie, Cell, Legend, ResponsiveContainer, Tooltip } from "recharts"
 import { createClient } from "@/utils/supabase/client"
-import { isBefore, format, startOfMonth, addMonths, isSameMonth } from "date-fns"
+import { isBefore, startOfMonth, addMonths, isSameMonth } from "date-fns"
 import { Skeleton } from "@/components/ui/skeleton"
 
 interface InterestPayment {
@@ -14,25 +14,62 @@ interface InterestPayment {
   payment_date: string;
 }
 
-interface LoanWithMember {
-  id: string;
-  loan_amount: number;
-  interest_rate: number;
-  tenure: number;
-  created_at: string;
-  disbursed_at?: string;
-  state: string;
-  member: {
-    id: string;
-    member_id: string;
-    name: string;
-    full_name: string;
-    phone: string;
-    avatar_url?: string;
-  };
-  interest_payments: InterestPayment[];
-  disbursements?: { created_at: string }[];
+interface Repayment {
+  status: string;
+  due_date: string | null;
 }
+
+interface LoanWithMember {
+
+  id: string;
+
+  loan_amount: number;
+
+  interest_rate: number;
+
+  tenure: number;
+
+  created_at: string;
+
+  disbursed_at?: string;
+
+  state: string;
+
+  member: {
+
+    id: string;
+
+    member_id: string;
+
+    name: string;
+
+    full_name: string;
+
+    phone: string;
+
+    avatar_url?: string;
+
+  };
+
+  interest_payments: InterestPayment[];
+
+  disbursements?: { created_at: string }[];
+
+}
+
+
+
+interface ChartData {
+
+  name: string;
+
+  value: number;
+
+  color: string;
+
+}
+
+
 
 const getLoanStartDate = (loan: LoanWithMember) => {
   const disbursedDate = loan.disbursements?.[0]?.created_at || loan.created_at;
@@ -78,7 +115,7 @@ const getUnpaidMonths = (loan: LoanWithMember) => {
 };
 
 export function LoanStatusChart() {
-  const [data, setData] = useState<any[]>([])
+  const [data, setData] = useState<ChartData[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -102,15 +139,12 @@ export function LoanStatusChart() {
         .from('repayments')
         .select('status, due_date')
         
-      let repaymentPaidCount = 0;
       let repaymentOverdueCount = 0
       
       const now = new Date()
 
-      repaymentsData?.forEach(r => {
-        if (r.status === 'paid') {
-            repaymentPaidCount++;
-        } else if (r.status === 'overdue') {
+      repaymentsData?.forEach((r: Repayment) => {
+        if (r.status === 'overdue') {
             repaymentOverdueCount++
         } else if (r.status === 'pending') {
              if (r.due_date && isBefore(new Date(r.due_date), now)) {
@@ -124,10 +158,6 @@ export function LoanStatusChart() {
         .select('*', { count: 'exact', head: true })
         .eq('status', 'pending')
 
-      const { count: pendingLoansCount } = await supabase
-        .from('loans')
-        .select('*', { count: 'exact', head: true })
-        .eq('state', 'pending')
 
       // 4. Overdue & Pending Interest: From Loans and Interest Payments
       const { data: activeLoansData, error: loansError } = await supabase
@@ -156,21 +186,15 @@ export function LoanStatusChart() {
         // Continue with what we have if loans data fails
       }
 
-      let interestPaidCount = 0;
       let overdueInterestCount = 0;
-      let pendingInterestCount = 0;
       const currentMonthStart = startOfMonth(now);
 
       (activeLoansData as LoanWithMember[] || []).forEach(loan => {
-        interestPaidCount += loan.interest_payments.length; // Count existing interest payments as paid
-
         const unpaidMonths = getUnpaidMonths(loan);
         
         unpaidMonths.forEach(monthDate => {
           if (isBefore(monthDate, currentMonthStart)) {
             overdueInterestCount++;
-          } else {
-            pendingInterestCount++;
           }
         });
       });

@@ -41,7 +41,7 @@ import { cn, formatCurrencyShort } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Loan, Disbursement } from "../../lib/types/loans";
+import { Loan, Disbursement } from "@/lib/types/loans";
 
 const HISTORY_PER_PAGE = 5;
 
@@ -79,7 +79,7 @@ export default function DisbursementPage() {
       console.log("pending loans>>>>>>>>>>>>>>", data);
       setPendingLoans(data || []);
     }
-  }, [supabase, toast]);
+  }, [supabase]);
 
   const fetchHistory = useCallback(async () => {
     const from = (historyPage - 1) * HISTORY_PER_PAGE;

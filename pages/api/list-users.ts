@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import type { NextApiRequest, NextApiResponse } from 'next'
+import type { User } from '@supabase/supabase-js'
 
 export default async function handler(
   req: NextApiRequest,
@@ -28,7 +29,8 @@ export default async function handler(
     }
 
     // Map to a cleaner structure for the frontend
-    const mappedUsers = users.map(u => ({
+    type AdminUser = User & { banned_until?: string }
+    const mappedUsers = (users as AdminUser[]).map(u => ({
       id: u.id,
       email: u.email,
       name: u.user_metadata?.full_name || u.user_metadata?.name || 'System User',
@@ -37,7 +39,7 @@ export default async function handler(
     }))
 
     return res.status(200).json(mappedUsers)
-  } catch (err: any) {
+  } catch (err) {
     console.error('Unexpected error:', err)
     return res.status(500).json({ message: 'Internal server error' })
   }

@@ -45,7 +45,7 @@ import { cn, formatCurrencyShort } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
 import { format, isBefore, startOfDay } from "date-fns";
 import { toast } from "sonner";
-import { LoanRepaymentSummary, Repayment } from "../../lib/types/loans";
+import { LoanRepaymentSummary, Repayment } from "@/lib/types/loans";
 
 export default function RepaymentPage() {
   const supabase = useMemo(() => createClient(), []);
@@ -83,7 +83,7 @@ export default function RepaymentPage() {
       setSummaries(data || []);
     }
     setIsLoading(false);
-  }, [supabase, toast]);
+  }, [supabase]);
 
   useEffect(() => {
     const timer = setTimeout(() => {

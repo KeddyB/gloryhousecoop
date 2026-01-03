@@ -69,7 +69,7 @@ import {
 import { createClient } from "@/utils/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EditProfileDialog } from "@/components/edit-profile-dialog";
-import { Member } from "./types";
+import { Member } from "@/lib/types/members";
 import {
   format,
   startOfMonth,
@@ -77,6 +77,77 @@ import {
   isBefore,
   isSameMonth,
 } from "date-fns";
+
+// Define specific types to replace 'any'
+interface Note {
+  id: string;
+  note: string;
+  date: string;
+  created_by_name: string;
+  source: string;
+}
+
+interface Repayment {
+  amount_paid: number;
+}
+
+interface Disbursement {
+  created_at: string;
+}
+
+interface InterestPayment {
+  payment_for_month: string;
+  amount_paid: number;
+}
+
+interface Loan {
+  id: string;
+  loan_amount?: number;
+  amount?: number;
+  tenure: number;
+  interest_rate: number;
+  state: string;
+  created_at: string;
+  repayments: Repayment[];
+  disbursements: Disbursement[];
+  interest_payments: InterestPayment[];
+  third_party_name?: string;
+  third_party_number?: string;
+  collateral_docs_url?: string;
+  loan_agreement_url?: string;
+}
+
+interface ActivityItem {
+  id: string;
+  title: string;
+  date: string;
+  created_at: string;
+  amount: number;
+  type: "success" | "danger";
+}
+
+interface InterestHistoryItem {
+  month: string;
+  amount: string;
+  date: string;
+  method: string;
+  status: string;
+  rawDate: Date;
+}
+
+interface LoanDocument {
+  name: string;
+  url: string;
+  loanId: string;
+  createdAt: string;
+}
+
+interface LoanForDocs {
+  id: string;
+  created_at: string;
+  collateral_docs_url?: string | null;
+  loan_agreement_url?: string | null;
+}
 
 export default function MemberProfile() {
   const router = useRouter();
@@ -88,7 +159,7 @@ export default function MemberProfile() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const supabase = createClient();
 
-  const [notes, setNotes] = useState<any[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [newNote, setNewNote] = useState("");
   const [noteDialogOpen, setNoteDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -185,14 +256,14 @@ export default function MemberProfile() {
   const [pendingInterest, setPendingInterest] = useState<number | null>(null);
   const [missedRepayment, setMissedRepayment] = useState<number>(0);
   const [activeLoan, setActiveLoan] = useState<number | null>(null);
-  const [activeLoans, setActiveLoans] = useState<any[]>([]);
+  const [activeLoans, setActiveLoans] = useState<Loan[]>([]);
   const [currentBalance, setCurrentBalance] = useState<number | null>(null);
-  const [recentActivity, setRecentActivity] = useState<any[] | null>(null);
-  const [allTransactions, setAllTransactions] = useState<any[]>([]);
+  const [recentActivity, setRecentActivity] = useState<ActivityItem[] | null>(null);
+  const [allTransactions, setAllTransactions] = useState<ActivityItem[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true); // New state
-  const [interestHistory, setInterestHistory] = useState<any[]>([]);
-  const [loanHistory, setLoanHistory] = useState<any[]>([]);
-  const [loanDocuments, setLoanDocuments] = useState<any[]>([]);
+  const [interestHistory, setInterestHistory] = useState<InterestHistoryItem[]>([]);
+  const [loanHistory, setLoanHistory] = useState<Loan[]>([]);
+  const [loanDocuments, setLoanDocuments] = useState<LoanDocument[]>([]);
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(true); // New state
 
   async function fetchMemberData() {
@@ -225,13 +296,13 @@ export default function MemberProfile() {
       if (loansError) {
          console.error("Error fetching loans data:", loansError);
       } else if (loansData) {
-        setActiveLoans(loansData);
+        setActiveLoans(loansData as Loan[]);
         // Calculate totals for Active Loans
         const totalActiveLoanAmount = loansData.reduce((sum, loan) => sum + (loan.loan_amount ?? loan.amount ?? 0), 0);
         
         // Calculate total repayments made towards active loans
         const totalRepaid = loansData.reduce((sum, loan) => {
-            const loanRepaid = loan.repayments ? loan.repayments.reduce((rSum: number, r: any) => rSum + (r.amount_paid ?? 0), 0) : 0;
+            const loanRepaid = loan.repayments ? loan.repayments.reduce((rSum: number, r: Repayment) => rSum + (r.amount_paid ?? 0), 0) : 0;
             return sum + loanRepaid;
         }, 0);
 
@@ -266,7 +337,7 @@ export default function MemberProfile() {
 
                 let iterDate = startOfMonth(startDue);
                 while (isBefore(iterDate, limitDate)) {
-                     const isPaid = loan.interest_payments?.some((p: any) => 
+                     const isPaid = loan.interest_payments?.some((p: InterestPayment) => 
                          isSameMonth(new Date(p.payment_for_month), iterDate)
                      );
                      
@@ -289,7 +360,7 @@ export default function MemberProfile() {
                 }
                 
                 const expectedRepaid = dueInstallments * monthlyPrincipal;
-                const loanRepaid = loan.repayments ? loan.repayments.reduce((rSum: number, r: any) => rSum + (r.amount_paid ?? 0), 0) : 0;
+                const loanRepaid = loan.repayments ? loan.repayments.reduce((rSum: number, r: Repayment) => rSum + (r.amount_paid ?? 0), 0) : 0;
 
                 if (loanRepaid < expectedRepaid) {
                     // Use a small tolerance for floating point comparison
@@ -361,7 +432,7 @@ export default function MemberProfile() {
       console.error("Error fetching loan history:", error);
       setLoanHistory([]);
     } else {
-      setLoanHistory(loans || []);
+      setLoanHistory(loans as Loan[] || []);
     }
   }
 
@@ -386,8 +457,8 @@ export default function MemberProfile() {
         return;
       }
       
-      const documents = (loans || []).flatMap((loan: any) => {
-        const docs = [];
+      const documents = (loans || []).flatMap((loan: LoanForDocs) => {
+        const docs: LoanDocument[] = [];
         if (loan.collateral_docs_url) {
           docs.push({
             name: "Collateral Document",
@@ -418,7 +489,7 @@ export default function MemberProfile() {
   async function fetchNotes() {
     if (!memberId) return;
 
-    let allNotes: any[] = [];
+    let allNotes: Note[] = [];
 
     // 1. Fetch from member_notes
     const { data: memberNotes, error: memberNotesError } = await supabase
@@ -520,7 +591,7 @@ export default function MemberProfile() {
 
       const loanIds = loans.map(l => l.id);
 
-      let activities: any[] = [];
+      let activities: ActivityItem[] = [];
 
       const { data: interestPayments, error: interestError } = await supabase.from("interest_payments").select("id, amount_paid, payment_date, created_at").in("loan_id", loanIds);
 
@@ -591,8 +662,11 @@ export default function MemberProfile() {
       await fetchRecentActivity();
     };
     fetchAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memberId]);
-
+  
+  // ... rest of the component
+  
   if (loading) {
     return (
       <div className="flex h-screen bg-background">
@@ -940,7 +1014,7 @@ export default function MemberProfile() {
                     {activeLoans.length > 0 ? (
                       activeLoans.map((loan, i) => {
                          const loanAmount = loan.loan_amount ?? loan.amount ?? 0;
-                         const loanRepaid = loan.repayments ? loan.repayments.reduce((acc: number, curr: any) => acc + (curr.amount_paid ?? 0), 0) : 0;
+                         const loanRepaid = loan.repayments ? loan.repayments.reduce((acc: number, curr: Repayment) => acc + (curr.amount_paid ?? 0), 0) : 0;
                          const remaining = Math.max(0, loanAmount - loanRepaid);
                          const progress = loanAmount > 0 ? (loanRepaid / loanAmount) * 100 : 0;
                          
@@ -1104,7 +1178,7 @@ export default function MemberProfile() {
                   </CardContent>
                 </Card>
 
-                {activeLoans.some((l: any) => l.third_party_name) && (
+                {activeLoans.some((l: Loan) => l.third_party_name) && (
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-base flex items-center gap-2">
@@ -1113,8 +1187,8 @@ export default function MemberProfile() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {activeLoans
-                        .filter((l: any) => l.third_party_name)
-                        .map((loan: any, index: number) => (
+                        .filter((l: Loan) => l.third_party_name)
+                        .map((loan: Loan, index: number) => (
                           <div key={loan.id} className={index > 0 ? "pt-4 border-t" : ""}>
                             <div className="grid grid-cols-2 gap-4">
                               <div>
@@ -1249,7 +1323,7 @@ export default function MemberProfile() {
                         loanHistory.map((loan) => {
                           const amount = loan.loan_amount ?? loan.amount ?? 0;
                           const disbursedDate = loan.disbursements?.[0]?.created_at || loan.created_at;
-                          const paid = loan.repayments?.reduce((sum: number, r: any) => sum + (r.amount_paid || 0), 0) || 0;
+                          const paid = loan.repayments?.reduce((sum: number, r: Repayment) => sum + (r.amount_paid || 0), 0) || 0;
                           const remaining = Math.max(0, amount - paid);
                           
                           return (
@@ -1443,7 +1517,7 @@ export default function MemberProfile() {
                     <DialogHeader>
                       <DialogTitle>Add a new note</DialogTitle>
                       <DialogDescription>
-                        This note will be added to the member's profile.
+                        This note will be added to the member&apos;s profile.
                       </DialogDescription>
                     </DialogHeader>
                     <Textarea

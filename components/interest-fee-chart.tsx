@@ -28,8 +28,35 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 type Interval = "hourly" | "daily" | "weekly" | "monthly" | "yearly"
 
+interface Transaction {
+  id?: string
+  title?: string
+  name?: string
+  amount_paid: number
+  status?: 'active' | 'inactive' | 'pending'
+  date?: string
+  created_at?: string
+  type?: 'disbursement' | 'repayment' | 'interest'
+
+  member?: {
+    full_name: string
+    name: string
+  } | null
+
+  loan?: {
+    member: {
+      full_name: string
+      name: string
+    }
+  } | null
+
+  payment_date?: string
+  due_date?: string
+}
+
+
 export function InterestFeeChart() {
-  const [payments, setPayments] = useState<any[]>([])
+  const [payments, setPayments] = useState<Transaction[]>([])
   const [interval, setInterval] = useState<Interval>("monthly")
   const [isLoading, setIsLoading] = useState(true)
 
@@ -44,7 +71,7 @@ export function InterestFeeChart() {
       if (error) {
         console.error('Error fetching interest payments:', error)
       } else {
-        setPayments(paymentsData || [])
+        setPayments(paymentsData ?? [])
       }
       setIsLoading(false)
     }
@@ -99,6 +126,7 @@ export function InterestFeeChart() {
         timeBuckets = intervalGenerator({ start, end: now })
     } catch (e) {
         timeBuckets = []
+        console.error("Error generating time buckets:", e)
     }
 
     // 3. Group actual payments
