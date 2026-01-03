@@ -114,14 +114,20 @@
   box-shadow: none !important;
 }
 
-/* Hide spin-buttons for input type number */
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
+/* Recent Transactions Component Styles */
+.recent-transaction-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem; /* p-3 */
+  background-color: var(--color-background); /* bg-background */
+  border-radius: 0.5rem; /* rounded-lg */
+  border: 1px solid var(--color-border); /* border border-border */
+  gap: 0.5rem; /* gap-2 */
 }
 
-input[type="number"] {
-  -moz-appearance: textfield;
-  appearance: textfield;
+@media (min-width: 768px) { /* md:p-4 */
+  .recent-transaction-item {
+    padding: 1rem;
+  }
 }

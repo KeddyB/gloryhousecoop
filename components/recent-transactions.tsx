@@ -25,7 +25,7 @@ interface NestedMember {
 }
 
 interface NestedLoan {
-  member: NestedMember[] | null
+  member: NestedMember[] | NestedMember
 }
 
 interface DisbursementRecord {
@@ -51,6 +51,16 @@ interface InterestPaymentRecord {
   loan: NestedLoan[] | null
 }
 
+function getMemberName(loan: NestedLoan | NestedLoan[] | null): string {
+  if (!loan) return "Unknown Member"
+  // Handle if loan is array (one-to-many inferred) or object (many-to-one inferred)
+  const loanData = Array.isArray(loan) ? loan[0] : loan
+  if (!loanData || !loanData.member) return "Unknown Member"
+  
+  // Handle if member is array or object
+  const memberData = Array.isArray(loanData.member) ? loanData.member[0] : loanData.member
+  return memberData?.full_name || memberData?.name || "Unknown Member"
+}
 
 export function RecentTransactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -143,7 +153,7 @@ export function RecentTransactions() {
     const disbursementTransactions: Transaction[] = ((disbursements as DisbursementRecord[]) || []).map(d => ({
       id: d.id,
       title: "Loan Disbursement",
-      name: d.loan?.member?.full_name || d.loan?.member?.name || "Unknown Member",
+      name: getMemberName(d.loan),
       amount: d.disbursement_amount,
       status: "Completed",
       date: d.created_at,
@@ -154,7 +164,7 @@ export function RecentTransactions() {
     const repaymentTransactions: Transaction[] = ((repayments as RepaymentRecord[]) || []).map(r => ({
       id: r.id,
       title: "Loan Repayment",
-      name: r.loan?.member?.full_name || r.loan?.member?.name || "Unknown Member",
+      name: getMemberName(r.loan),
       amount: r.amount_paid,
       status: "Completed",
       // Use updated_at as primary date source
@@ -166,7 +176,7 @@ export function RecentTransactions() {
     const interestTransactions: Transaction[] = ((interestPayments as InterestPaymentRecord[]) || []).map(i => ({
       id: i.id,
       title: "Interest Payment",
-      name: i.loan?.member?.full_name || i.loan?.member?.name || "Unknown Member",
+      name: getMemberName(i.loan),
       amount: i.amount_paid,
       status: "Completed",
       date: i.created_at || new Date().toISOString(),

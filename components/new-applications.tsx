@@ -45,7 +45,7 @@ export function NewApplications() {
           const hasDisbursementRecord = loan.disbursements && loan.disbursements.length > 0
           const isStateDisbursed = loan.state === 'active' || loan.state === 'disbursed'
 
-          const member = loan.member // pick first member
+          const member = Array.isArray(loan.member) ? loan.member[0] : loan.member
           const memberName = member?.full_name || member?.name || "Unknown Member"
 
           return {
