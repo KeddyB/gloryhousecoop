@@ -278,6 +278,17 @@ function LoanApplicationForm() {
     if (!validateStep()) return;
 
     setIsSubmitting(true);
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const operatorName =
+      user?.user_metadata?.full_name ||
+      user?.user_metadata?.name ||
+      user?.email ||
+      "Operator";
+
     const { error } = await supabase.from("loans").insert([
       {
         member_id: selectedMember?.member_id,
@@ -293,6 +304,8 @@ function LoanApplicationForm() {
         collateral_docs_url: formData.collateralDocsUrl,
         loan_agreement_url: formData.loanAgreementUrl,
         state: "pending",
+        applied_by: user?.id,
+        applied_by_name: operatorName,
       },
     ]);
 
@@ -749,7 +762,10 @@ function LoanApplicationForm() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-3">
-                      <label className="text-sm font-medium" htmlFor="agreement-file">
+                      <label
+                        className="text-sm font-medium"
+                        htmlFor="agreement-file"
+                      >
                         Collateral Documents
                       </label>
                       <input
@@ -792,7 +808,10 @@ function LoanApplicationForm() {
                     </div>
 
                     <div className="space-y-3">
-                      <label className="text-sm font-medium" htmlFor="agreement-file">
+                      <label
+                        className="text-sm font-medium"
+                        htmlFor="agreement-file"
+                      >
                         Loan Agreement
                       </label>
                       <input
