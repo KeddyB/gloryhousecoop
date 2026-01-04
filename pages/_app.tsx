@@ -1,5 +1,6 @@
 import type { AppProps } from "next/app";
 import { Geist, Geist_Mono } from "next/font/google";
+// import { Analytics } from "@vercel/analytics/next";
 import { Toaster } from "sonner";
 import "../styles/globals.css";
 
@@ -17,6 +18,7 @@ export default function App({ Component, pageProps }: AppProps) {
       `}</style>
       <main className={`font-sans antialiased ${geist.className}`}>
         <Component {...pageProps} />
+        {/* <Analytics /> */}
         <Toaster richColors position="bottom-right" />
       </main>
     </>
