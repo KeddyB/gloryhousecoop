@@ -69,6 +69,7 @@ import {
 import { createClient } from "@/utils/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EditProfileDialog } from "@/components/edit-profile-dialog";
+import { EditLoanTenureDialog } from "@/components/edit-loan-tenure-dialog";
 import { Member } from "@/lib/types/members";
 import {
   format,
@@ -172,6 +173,9 @@ export default function MemberProfile() {
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
   const [isDeletingNote, setIsDeletingNote] = useState(false);
   const [isAddingNote, setIsAddingNote] = useState(false);
+
+  const [editLoanDialogOpen, setEditLoanDialogOpen] = useState(false);
+  const [loanToEdit, setLoanToEdit] = useState<Loan | null>(null);
 
   async function handleNoteSubmit() {
     if (!newNote.trim() || !memberId) return;
@@ -1477,6 +1481,7 @@ export default function MemberProfile() {
                         <TableHead>Interest</TableHead>
                         <TableHead>Paid</TableHead>
                         <TableHead>Remaining</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1513,6 +1518,20 @@ export default function MemberProfile() {
                               <TableCell>₦{paid.toLocaleString()}</TableCell>
                               <TableCell>
                                 ₦{remaining.toLocaleString()}
+                              </TableCell>
+                              <TableCell>
+                                {remaining > 0 && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setLoanToEdit(loan);
+                                      setEditLoanDialogOpen(true);
+                                    }}
+                                  >
+                                    <Edit className="h-3 w-3" />
+                                  </Button>
+                                )}
                               </TableCell>
                             </TableRow>
                           );
@@ -1825,6 +1844,12 @@ export default function MemberProfile() {
           open={editDialogOpen}
           onOpenChange={setEditDialogOpen}
           onSuccess={fetchMember}
+        />
+        <EditLoanTenureDialog
+          loan={loanToEdit}
+          open={editLoanDialogOpen}
+          onOpenChange={setEditLoanDialogOpen}
+          onSuccess={fetchLoanHistory}
         />
       </div>
     </div>

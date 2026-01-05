@@ -31,6 +31,7 @@ import { Label } from "@/components/ui/label";
 import { createClient } from "@/utils/supabase/client";
 
 import { ActivityLog } from "@/components/activity-log";
+import { AnnualDataAnalytics } from "@/components/annual-data-analytics";
 
 interface User {
   id: string;
@@ -59,8 +60,13 @@ export default function SettingsPage() {
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Annual Data State
+  // Statist Data State
   const [totalMembers, setTotalMembers] = useState<string | null>(null);
+  const [totalTransactions, setTotalTransactions] = useState<string | null>(
+    null
+  );
+  const [totalLoans, setTotalLoans] = useState<string | null>(null);
+  const [totalLoanAmount, setTotalLoanAmount] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -76,26 +82,68 @@ export default function SettingsPage() {
     }
   }, []);
 
-  const fetchMemberCount = useCallback(async () => {
+  const fetchAnnualData = useCallback(async () => {
     try {
-      const { count } = await supabase
+      // 1. Total Members
+      const { count: membersCount } = await supabase
         .from("members")
         .select("*", { count: "exact", head: true });
-      if (count !== null) {
-        setTotalMembers(count.toString());
+      setTotalMembers(membersCount?.toString() || "0");
+
+      // 2. Total Transactions (repayments + interest_payments)
+      const { count: repaymentsCount } = await supabase
+        .from("repayments")
+        .select("*", { count: "exact", head: true });
+      const { count: interestsCount } = await supabase
+        .from("interest_payments")
+        .select("*", { count: "exact", head: true });
+
+      const totalTx = (repaymentsCount || 0) + (interestsCount || 0);
+      setTotalTransactions(totalTx.toString());
+
+      // 3. Total Loans Count
+      const { count: loansCount } = await supabase
+        .from("loans")
+        .select("*", { count: "exact", head: true });
+      setTotalLoans(loansCount?.toString() || "0");
+
+      // 4. Total Loan Amount Disbursed
+      // Assuming we sum up 'loan_amount' from 'loans' table for all disbursed loans or all loans.
+      // If we want total disbursed, filter by status if needed. For now, assuming all loans in table.
+      const { data: loanAmounts, error: loanSumError } = await supabase
+        .from("loans")
+        .select("loan_amount");
+
+      if (loanSumError) {
+        console.error("Error fetching loan amounts:", loanSumError);
+        setTotalLoanAmount("0");
       } else {
-        setTotalMembers("0");
+        const sum = loanAmounts?.reduce(
+          (acc, curr) => acc + (Number(curr.loan_amount) || 0),
+          0
+        );
+
+        // Format to N...M or similar if large, or just formatted number
+        if (sum && sum > 1000000) {
+          const inMillions = (sum / 1000000).toFixed(1);
+          setTotalLoanAmount(`₦${inMillions}M`);
+        } else {
+          setTotalLoanAmount(`₦${(sum || 0).toLocaleString()}`);
+        }
       }
     } catch (error) {
-      console.error(error);
+      console.error("Error fetching stastical data:", error);
       setTotalMembers("0");
+      setTotalTransactions("0");
+      setTotalLoans("0");
+      setTotalLoanAmount("₦0");
     }
   }, []);
 
   useEffect(() => {
     fetchUsers();
-    fetchMemberCount();
-  }, [fetchUsers, fetchMemberCount]);
+    fetchAnnualData();
+  }, [fetchUsers, fetchAnnualData]);
 
   const handleDeleteClick = (id: string) => {
     setUserToDelete(id);
@@ -194,7 +242,7 @@ export default function SettingsPage() {
           </div>
 
           <Tabs defaultValue="users" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 bg-muted/50 rounded-full h-16 p-2">
+            <TabsList className="grid w-full grid-cols-3 bg-muted/50 rounded-full h-16 p-2 overflow-x-auto min-w-[300px]">
               <TabsTrigger
                 value="users"
                 className="rounded-full h-full data-[state=active]:bg-white data-[state=active]:!bg-white data-[state=active]:text-foreground text-muted-foreground transition-all border-0 shadow-none ring-0 scale-95 data-[state=active]:scale-85"
@@ -211,7 +259,7 @@ export default function SettingsPage() {
                 value="annual-data"
                 className="rounded-full h-full data-[state=active]:bg-white data-[state=active]:!bg-white data-[state=active]:text-foreground text-muted-foreground transition-all border-0 shadow-none ring-0 scale-95 data-[state=active]:scale-85"
               >
-                Annual Data
+                Statiscal Data
               </TabsTrigger>
             </TabsList>
 
@@ -311,38 +359,59 @@ export default function SettingsPage() {
                   <CardTitle>Data Statistics Annually</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-4 gap-8 py-8 text-center">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-8 py-8 text-center">
                     <div>
                       {totalMembers === null ? (
                         <Skeleton className="h-10 w-24 mx-auto mb-2" />
                       ) : (
-                        <p className="text-4xl font-bold">{totalMembers}</p>
+                        <p className="text-xl md:text-4xl font-bold">
+                          {totalMembers}
+                        </p>
                       )}
-                      <p className="text-sm text-muted-foreground mt-2">
+                      <p className="text-xs md:text-sm text-muted-foreground mt-2">
                         Members
                       </p>
                     </div>
                     <div>
-                      <p className="text-4xl font-bold">1300</p>
-                      <p className="text-sm text-muted-foreground mt-2">
+                      {totalTransactions === null ? (
+                        <Skeleton className="h-10 w-24 mx-auto mb-2" />
+                      ) : (
+                        <p className="text-xl md:text-4xl font-bold">
+                          {totalTransactions}
+                        </p>
+                      )}
+                      <p className="text-xs md:text-sm text-muted-foreground mt-2">
                         Transactions
                       </p>
                     </div>
                     <div>
-                      <p className="text-4xl font-bold">45</p>
-                      <p className="text-sm text-muted-foreground mt-2">
+                      {totalLoans === null ? (
+                        <Skeleton className="h-10 w-24 mx-auto mb-2" />
+                      ) : (
+                        <p className="text-xl md:text-4xl font-bold">
+                          {totalLoans}
+                        </p>
+                      )}
+                      <p className="text-xs md:text-sm text-muted-foreground mt-2">
                         Loans
                       </p>
                     </div>
                     <div>
-                      <p className="text-4xl font-bold">N6.5M</p>
-                      <p className="text-sm text-muted-foreground mt-2">
+                      {totalLoanAmount === null ? (
+                        <Skeleton className="h-10 w-24 mx-auto mb-2" />
+                      ) : (
+                        <p className="text-xl md:text-4xl font-bold">
+                          {totalLoanAmount}
+                        </p>
+                      )}
+                      <p className="text-xs md:text-sm text-muted-foreground mt-2">
                         Total Loan
                       </p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
+            <AnnualDataAnalytics />
             </TabsContent>
           </Tabs>
         </div>

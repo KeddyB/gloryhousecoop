@@ -185,7 +185,7 @@ export function Sidebar() {
           isOpen ? "translate-x-0 shadow-xl" : "-translate-x-full",
           // Desktop Styles
           "md:relative md:translate-x-0 md:shadow-none md:z-auto",
-          isOpen ? "md:w-80" : "md:w-20"
+          isOpen ? "md:w-200" : "md:w-20"
         )}
       >
         {/* Header */}
@@ -193,11 +193,9 @@ export function Sidebar() {
           <div className={`flex items-center ${isOpen ? "justify-between" : "justify-center"}`}>
             {isOpen && (
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-sm font-semibold text-gray-700">
-                  GH
-                </div>
+                <img src="/favicon.ico" alt="Glory House Logo" className="w-13 h-13 rounded-full" />
                 <div className="flex-1">
-                  <h1 className="text-xs font-semibold text-foreground">Glory House</h1>
+                  <h1 className="text-xl font-semibold text-foreground">Glory House</h1>
                   <p className="text-xs text-muted-foreground">Multipurpose cooperative society limited</p>
                 </div>
               </div>
@@ -209,7 +207,7 @@ export function Sidebar() {
         </div>
 
         {/* Navigation */}
-        <nav className={`flex-1 overflow-y-auto ${isOpen ? "p-4 space-y-2" : "p-2 space-y-2"}`}>
+        <nav className={`flex-1 overflow-y-auto ${isOpen ? "p-5 space-y-2" : "p-4 space-y-2"}`}>
           {menuItems.map((item) => {
             const Icon = item.icon
             
