@@ -1,4 +1,4 @@
-import { createServerClient } from "@/utils/supabase/server";
+import { createClient } from "@/utils/supabase/pages";
 import { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(
@@ -9,7 +9,7 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const supabase = createServerClient(req, res);
+  const supabase = createClient(req, res);
 
   const {
     data: { user },
