@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -20,6 +21,8 @@ import {
 } from "@/components/ui/select";
 import { format } from "date-fns";
 import { Loader2, User as UserIcon } from "lucide-react";
+import { DateRange } from "react-day-picker";
+import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 
 const supabase = createClient();
 const PAGE_SIZE = 50;
@@ -45,8 +48,7 @@ export function ActivityLog() {
   const [page, setPage] = useState(0);
 
   // Filters
-  const [fromDate, setFromDate] = useState<string>("");
-  const [toDate, setToDate] = useState<string>("");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedUser, setSelectedUser] = useState<string>("all");
   const [availableUsers, setAvailableUsers] = useState<
     { id: string; name: string }[]
@@ -80,12 +82,12 @@ export function ActivityLog() {
           query = query.eq("perpetuator", selectedUser);
         }
 
-        if (fromDate) {
-          query = query.gte("created_at", new Date(fromDate).toISOString());
+        if (dateRange?.from) {
+          query = query.gte("created_at", dateRange.from.toISOString());
         }
 
-        if (toDate) {
-          const endOfDay = new Date(toDate);
+        if (dateRange?.to) {
+          const endOfDay = new Date(dateRange.to);
           endOfDay.setHours(23, 59, 59, 999);
           query = query.lte("created_at", endOfDay.toISOString());
         }
@@ -109,7 +111,7 @@ export function ActivityLog() {
         setLoadingMore(false);
       }
     },
-    [fromDate, toDate, selectedUser]
+    [dateRange, selectedUser]
   );
 
   useEffect(() => {
@@ -119,7 +121,7 @@ export function ActivityLog() {
   useEffect(() => {
     setPage(0);
     fetchActivities(0, false);
-  }, [fromDate, toDate, selectedUser, fetchActivities]);
+  }, [dateRange, selectedUser, fetchActivities]);
 
   const loadMore = () => {
     const nextPage = page + 1;
@@ -156,48 +158,8 @@ export function ActivityLog() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-6 bg-muted/30 p-4 rounded-xl border border-border/50">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              From:
-            </span>
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className="bg-white border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-black/5"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              To:
-            </span>
-            <input
-              type="date"
-              value={toDate}
-              min={fromDate}
-              onChange={(e) => {
-                if (fromDate && e.target.value < fromDate) {
-                  return;
-                }
-                setToDate(e.target.value);
-              }}
-              className="bg-white border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-black/5"
-            />
-          </div>
-          {(fromDate || toDate) && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setFromDate("");
-                setToDate("");
-              }}
-              className="text-xs text-muted-foreground hover:text-black"
-            >
-              Clear Range
-            </Button>
-          )}
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-3">
+          <DatePickerWithRange date={dateRange} setDate={setDateRange} />
         </div>
 
         <div className="h-4 w-px bg-border hidden md:block" />
@@ -233,17 +195,25 @@ export function ActivityLog() {
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="h-32 text-center text-muted-foreground"
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading activities...
-                  </div>
-                </TableCell>
-              </TableRow>
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell>
+                    <Skeleton className="h-4 w-[140px]" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-[100px]" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-[180px]" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-[120px]" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-[120px]" />
+                  </TableCell>
+                </TableRow>
+              ))
             ) : activities.length === 0 ? (
               <TableRow>
                 <TableCell
