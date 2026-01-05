@@ -96,8 +96,14 @@ interface Disbursement {
 }
 
 interface InterestPayment {
+  id: string;
   payment_for_month: string;
   amount_paid: number;
+  payment_date?: string | null;
+  created_at: string;
+  notes?: string | null;
+  created_by_name?: string | null;
+  payment_method?: string | null;
 }
 
 interface Loan {
@@ -599,11 +605,11 @@ export default function MemberProfile() {
         console.error("Error fetching interest payment notes:", interestError);
       else if (interestNotes) {
         allNotes = allNotes.concat(
-          interestNotes.map((p) => ({
+          (interestNotes as InterestPayment[]).map((p) => ({
             id: `int-${p.id}`,
             note: p.notes as string,
             date: p.created_at,
-            created_by_name: (p as any).created_by_name || "System",
+            created_by_name: p.created_by_name || "System",
             source: "interest_payment",
           }))
         );
