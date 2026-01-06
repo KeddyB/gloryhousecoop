@@ -169,7 +169,7 @@ export function Sidebar() {
          <Button
             variant="outline"
             size="icon"
-            className="fixed top-4 right-4 z-30 bg-white shadow-sm h-10 w-10 md:hidden"
+            className="fixed top-4 right-4 z-30 bg-white shadow-sm h-10 w-10 md:hidden rounded-xl"
             onClick={() => setIsOpen(true)}
          >
             <Menu className="h-5 w-5" />

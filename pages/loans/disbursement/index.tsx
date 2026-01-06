@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Sidebar } from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +45,7 @@ import { format } from "date-fns";
 import { Loan, Disbursement } from "@/lib/types/loans";
 import { MobileHeader } from "@/components/mobile-header";
 import { useRouter } from "next/router";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const HISTORY_PER_PAGE = 5;
 
@@ -57,6 +58,7 @@ export default function DisbursementPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [pendingLoans, setPendingLoans] = useState<Loan[]>([]);
   const [historyLoans, setHistoryLoans] = useState<Disbursement[]>([]);
+  const [allDisbursements, setAllDisbursements] = useState<Disbursement[]>([]);
   const [historyPage, setHistoryPage] = useState(1);
   const [totalHistoryCount, setTotalHistoryCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
@@ -64,6 +66,8 @@ export default function DisbursementPage() {
   const [disbursementAmount, setDisbursementAmount] = useState("");
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isMobile = useIsMobile();
+  const [historySearchQuery, setHistorySearchQuery] = useState("");
 
   const fetchPendingLoans = useCallback(async () => {
     const { data, error } = await supabase
@@ -86,10 +90,7 @@ export default function DisbursementPage() {
   }, [supabase]);
 
   const fetchHistory = useCallback(async () => {
-    const from = (historyPage - 1) * HISTORY_PER_PAGE;
-    const to = from + HISTORY_PER_PAGE - 1;
-
-    const { data, error, count } = await supabase
+    const { data, error } = await supabase
       .from("disbursements")
       .select(
         `
@@ -97,19 +98,17 @@ export default function DisbursementPage() {
         loan:loans(
           *,
           member:members(*)
-        )      `,
-        { count: "exact" }
+        )      `
       )
-      .range(from, to)
       .order("created_at", { ascending: false });
 
     if (error) {
       console.error("Error fetching history:", error);
+      toast.error(`Error fetching history: ${error.message}`);
     } else {
-      setHistoryLoans(data || []);
-      setTotalHistoryCount(count || 0);
+      setAllDisbursements(data || []);
     }
-  }, [supabase, historyPage]);
+  }, [supabase]);
 
   useEffect(() => {
     const init = async () => {
@@ -119,6 +118,40 @@ export default function DisbursementPage() {
     };
     init();
   }, [fetchPendingLoans, fetchHistory]);
+
+  const filteredAndPaginatedHistory = useMemo(() => {
+    // Filter logic
+    const filtered = allDisbursements.filter(disbursement => {
+      if (!historySearchQuery) return true; // Show all if no search query
+
+      const query = historySearchQuery.toLowerCase();
+      const memberName = disbursement.loan?.member?.name?.toLowerCase() || "";
+      const memberFullName = disbursement.loan?.member?.full_name?.toLowerCase() || "";
+      const memberId = disbursement.loan?.member?.member_id?.toLowerCase() || "";
+
+      return memberName.includes(query) || memberFullName.includes(query) || memberId.includes(query);
+    });
+
+    // Pagination logic
+    const from = (historyPage - 1) * HISTORY_PER_PAGE;
+    const to = from + HISTORY_PER_PAGE; // exclusive end for slice
+
+    return filtered.slice(from, to);
+  }, [allDisbursements, historyPage, historySearchQuery]);
+
+  useEffect(() => {
+    setHistoryLoans(filteredAndPaginatedHistory);
+    // Update total count based on filtered array length, not just paginated
+    const totalFilteredCount = allDisbursements.filter(disbursement => {
+      if (!historySearchQuery) return true;
+      const query = historySearchQuery.toLowerCase();
+      const memberName = disbursement.loan?.member?.name?.toLowerCase() || "";
+      const memberFullName = disbursement.loan?.member?.full_name?.toLowerCase() || "";
+      const memberId = disbursement.loan?.member?.member_id?.toLowerCase() || "";
+      return memberName.includes(query) || memberFullName.includes(query) || memberId.includes(query);
+    }).length;
+    setTotalHistoryCount(totalFilteredCount);
+  }, [filteredAndPaginatedHistory, allDisbursements, historySearchQuery]);
 
   const handleDisburseClick = (loan: Loan) => {
     setSelectedLoan(loan);
@@ -282,17 +315,33 @@ export default function DisbursementPage() {
               <CardTitle className="text-lg font-semibold tracking-tight text-foreground">
                 Loans Ready for Disbursement
               </CardTitle>
-              <div className="relative w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400" />
-                <Input
-                  placeholder="Search member..."
-                  className="pl-8 h-9 text-xs border-gray-100 bg-gray-50/50 rounded-lg focus:ring-0 focus:border-gray-200 transition-all"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
+              {!isMobile && (
+                <div className="relative w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400" />
+                  <Input
+                    placeholder="Search member..."
+                    className="pl-8 h-9 text-xs border-gray-100 bg-gray-50/50 rounded-lg focus:ring-0 focus:border-gray-200 transition-all"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+              )}
             </CardHeader>
             <CardContent className="p-0">
+              {isMobile && (
+                <div className="px-6 pb-4">
+                  <div className="relative w-full">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400" />
+                    <Input
+                      placeholder="Search member..."
+                      className="pl-8 h-9 text-xs border-gray-100 bg-gray-50/50 rounded-lg focus:ring-0 focus:border-gray-200 transition-all"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-[#EEEEEE]">
@@ -410,12 +459,35 @@ export default function DisbursementPage() {
 
           {/* Table: Disbursed History */}
           <Card className="shadow-sm rounded-2xl overflow-hidden border border-gray-100">
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between pb-6 space-y-0">
               <CardTitle className="text-lg font-semibold tracking-tight text-foreground">
                 Disbursed History
               </CardTitle>
+              {!isMobile && ( // Show on desktop
+                <div className="relative w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400" />
+                  <Input
+                    placeholder="Search member..."
+                    className="pl-8 h-9 text-xs border-gray-100 bg-gray-50/50 rounded-lg focus:ring-0 focus:border-gray-200 transition-all"
+                    onChange={(e) => setHistorySearchQuery(e.target.value)}
+                  />
+                </div>
+              )}
             </CardHeader>
             <CardContent className="p-0">
+              {isMobile && ( // Show on mobile, inside CardContent
+                <div className="px-6 pb-4">
+                  <div className="relative w-full">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400" />
+                    <Input
+                      placeholder="Search member..."
+                      className="pl-8 h-9 text-xs border-gray-100 bg-gray-50/50 rounded-lg focus:ring-0 focus:border-gray-200 transition-all"
+                      value={historySearchQuery}
+                      onChange={(e) => setHistorySearchQuery(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-[#EEEEEE]">
@@ -463,7 +535,7 @@ export default function DisbursementPage() {
                           colSpan={5}
                           className="h-32 text-center text-xs text-gray-400 font-medium"
                         >
-                          No disbursement history.
+                          {historySearchQuery ? "No disbursement history found for this search." : "No disbursement history."}
                         </TableCell>
                       </TableRow>
                     : historyLoans.map((history) => (
