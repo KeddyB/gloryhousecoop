@@ -289,7 +289,7 @@ export default function MemberProfile() {
         setActiveLoans(loansData as Loan[]);
         // Calculate totals for Active Loans
         const totalActiveLoanAmount = loansData.reduce(
-          (sum, loan) => sum + (loan.loan_amount ?? loan.amount ?? 0),
+          (sum, loan) => sum + (loan.loan_amount ?? 0),
           0
         );
 
@@ -318,7 +318,7 @@ export default function MemberProfile() {
             loan.disbursements?.[0]?.created_at || loan.created_at;
 
           if (disbursedDate) {
-            const loanAmount = loan.loan_amount ?? loan.amount ?? 0;
+            const loanAmount = loan.loan_amount ?? 0;
             const startDue = addMonths(new Date(disbursedDate), 1);
             const tenure = loan.tenure;
             const loanEndDate = addMonths(startDue, tenure);
@@ -1463,7 +1463,7 @@ export default function MemberProfile() {
                           const disbursedDate =
                             loan.disbursements?.[0]?.created_at ||
                             loan.created_at;
-                          const paid = loan.amount_paid;
+                          const paid = loan.amount_paid ?? 0;
                           const remaining = Math.max(0, amount - paid);
 
                           return (

@@ -65,7 +65,7 @@ export interface Repayment {
   installment_number?: number;
   due_date?: string;
   amount_due?: number;
-  amount_paid: number;
+  amount_paid?: number;
   paid_at?: string;
   status?: "paid" | "pending" | "overdue";
   created_at?: string;

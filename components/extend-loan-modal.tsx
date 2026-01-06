@@ -141,11 +141,13 @@ export const ExtendLoanModal: React.FC<ExtendLoanModalProps> = ({
             </label>
             <div className="grid grid-cols-2 gap-3">
               {options.map((months) => (
-                <div
+                <button
                   key={months}
+                  type="button"
                   onClick={() => setSelectedExtension(months)}
+                  aria-pressed={selectedExtension === months}
                   className={`
-                    relative group cursor-pointer p-4 rounded-xl border-2 transition-all duration-200
+                    relative group cursor-pointer p-4 rounded-xl border-2 transition-all duration-200 text-left w-full
                     ${
                       selectedExtension === months
                         ? "border-blue-600 bg-blue-50/50 shadow-md ring-1 ring-blue-600/20"
@@ -170,7 +172,7 @@ export const ExtendLoanModal: React.FC<ExtendLoanModalProps> = ({
                       </div>
                     )}
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>
