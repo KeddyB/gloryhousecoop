@@ -44,6 +44,7 @@ import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MobileHeader } from "@/components/mobile-header";
 import { useRouter } from "next/router";
+import { DatePicker } from "@/components/ui/date-picker";
 
 interface InterestPayment {
   id: string;
@@ -87,8 +88,8 @@ export default function InterestFeeEntryPage() {
   // Form states
   const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
   const [paymentMethod, setPaymentMethod] = useState("Cash");
-  const [paymentDate, setPaymentDate] = useState(
-    format(new Date(), "yyyy-MM-dd")
+  const [paymentDate, setPaymentDate] = useState<Date | undefined>(
+    new Date()
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -98,7 +99,7 @@ export default function InterestFeeEntryPage() {
   const getLoanStartDate = useCallback((loan: LoanWithMember) => {
     const disbursedDate =
       loan.disbursements?.[0]?.created_at || loan.created_at;
-    return addMonths(new Date(disbursedDate), 1);
+    return new Date(disbursedDate);
   }, []);
 
   const getLoanEndDate = useCallback(
@@ -266,7 +267,14 @@ export default function InterestFeeEntryPage() {
   }, [fetchData]);
 
   const handleSubmitPayment = async () => {
-    if (!selectedLoan || selectedMonths.length === 0) return;
+    if (!selectedLoan || selectedMonths.length === 0 || !paymentDate) {
+      toast({
+        title: "Error",
+        description: "Please select a payment date.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -286,7 +294,7 @@ export default function InterestFeeEntryPage() {
         amount_paid: monthlyInterest,
         payment_for_month: month,
         payment_method: paymentMethod,
-        payment_date: new Date(paymentDate).toISOString(),
+        payment_date: paymentDate.toISOString(),
         created_by: user?.id,
         created_by_name: operatorName,
       }));
@@ -321,6 +329,9 @@ export default function InterestFeeEntryPage() {
   };
 
   const filteredLoans = useMemo(() => {
+    if (selectedLoan) {
+      return [selectedLoan];
+    }
     const query = searchQuery.toLowerCase();
     return loans.filter(
       (l) =>
@@ -329,7 +340,7 @@ export default function InterestFeeEntryPage() {
           .includes(query) ||
         (l.member.member_id || "").toLowerCase().includes(query)
     );
-  }, [loans, searchQuery]);
+  }, [loans, searchQuery, selectedLoan]);
 
   return (
     <div className="flex h-screen bg-background">
@@ -385,9 +396,9 @@ export default function InterestFeeEntryPage() {
             )}
           </div>
 
-          <div className="grid grid-cols-12 gap-8">
+          <div className="flex flex-col lg:flex-row gap-8">
             {/* Member List Section - Left 7 Cols */}
-            <Card className="col-span-12 lg:col-span-7 h-fit border-border shadow-sm">
+            <Card className="w-full lg:w-7/12 h-fit border-border shadow-sm">
               <CardContent className="p-6 space-y-6">
                 <h2 className="text-lg font-semibold">Member List</h2>
                 <div className="relative">
@@ -481,7 +492,7 @@ export default function InterestFeeEntryPage() {
             </Card>
 
             {/* Interest Details Section - Right 5 Cols */}
-            <Card className="col-span-12 lg:col-span-5 border-border shadow-sm bg-card h-fit rounded-xl">
+            <Card className="w-full lg:w-5/12 border-border shadow-sm bg-card h-fit rounded-xl">
               <CardContent className="p-6">
                 <h2 className="text-lg font-semibold mb-6">Interest Details</h2>
                 {selectedLoan ? (
@@ -585,15 +596,11 @@ export default function InterestFeeEntryPage() {
                       <label className="text-sm font-medium">
                         Payment Date
                       </label>
-                      <div className="relative">
-                        <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          type="date"
-                          className="pl-10 h-12 bg-background border-input rounded-lg w-full"
-                          value={paymentDate}
-                          onChange={(e) => setPaymentDate(e.target.value)}
-                        />
-                      </div>
+                      <DatePicker
+                        date={paymentDate}
+                        setDate={setPaymentDate}
+                        className="h-12 bg-background border-input rounded-lg w-full"
+                      />
                     </div>
 
                     {/* Payment Method */}

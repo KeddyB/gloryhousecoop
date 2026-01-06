@@ -28,7 +28,7 @@ import { format, startOfMonth, addMonths, isBefore } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MobileHeader } from "@/components/mobile-header";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 
 interface FeeRecord {
   id: string;

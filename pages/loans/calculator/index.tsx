@@ -1,5 +1,3 @@
-"use client"
-
 import { Sidebar } from "@/components/sidebar"
 import { MobileHeader } from "@/components/mobile-header"
 import { useRouter } from "next/router"
