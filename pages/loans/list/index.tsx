@@ -1,5 +1,7 @@
 "use client";
 
+import { MobileHeader } from "@/components/mobile-header";
+import { useRouter } from "next/router";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Sidebar } from "@/components/sidebar";
 import { Input } from "@/components/ui/input";
@@ -39,6 +41,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
 export default function LoanListPage() {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [monthFilter, setMonthFilter] = useState<string>("all");
@@ -173,10 +176,11 @@ export default function LoanListPage() {
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
+      <MobileHeader title="Loan Management" onBack={() => router.back()} />
       <div className="flex-1 overflow-auto">
-        <div className="p-10 w-full mx-auto space-y-10">
+        <div className="p-10 pt-[4.5rem] md:pt-10 space-y-10">
           {/* Header */}
-          <div className="space-y-1">
+          <div className="hidden md:block space-y-1">
             <h1 className="text-3xl font-semibold tracking-tight text-[#1A1A1A]">
               Loan Management
             </h1>

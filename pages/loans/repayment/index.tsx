@@ -38,8 +38,11 @@ import { createClient } from "@/utils/supabase/client";
 import { format, isBefore, startOfDay } from "date-fns";
 import { toast } from "sonner";
 import { LoanRepaymentSummary } from "@/lib/types/loans";
+import { MobileHeader } from "@/components/mobile-header";
+import { useRouter } from "next/router";
 
 export default function RepaymentPage() {
+  const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -142,10 +145,11 @@ export default function RepaymentPage() {
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
+      <MobileHeader title="Repayment Management" onBack={() => router.back()} />
       <div className="flex-1 overflow-auto p-8">
-        <div className="w-full mx-auto space-y-8">
+        <div className="space-y-8 pt-[4.5rem] md:pt-0">
           {/* Header */}
-          <div className="flex justify-between items-start">
+          <div className="hidden md:flex justify-between items-start">
             <div>
               <h1 className="text-3xl font-bold tracking-tight text-foreground">
                 Repayment Management

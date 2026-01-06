@@ -68,6 +68,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MobileHeader } from "@/components/mobile-header";
 import { EditProfileDialog } from "@/components/edit-profile-dialog";
 import { ExtendLoanModal } from "@/components/extend-loan-modal";
 import { Member } from "@/lib/types/members";
@@ -749,10 +750,11 @@ export default function MemberProfile() {
     return (
       <div className="flex h-screen bg-background">
         <Sidebar />
+        <MobileHeader title="Member Profile" onBack={() => router.back()} />
         <div className="flex-1 overflow-auto">
-          <div className="p-8 space-y-6">
+          <div className="p-8 pt-[4.5rem] md:pt-8 space-y-6">
             {/* Header Skeleton */}
-            <div className="flex items-center justify-between">
+            <div className="hidden md:flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <Skeleton className="h-10 w-10 rounded-full" />
                 <div className="space-y-2">
@@ -820,6 +822,7 @@ export default function MemberProfile() {
     return (
       <div className="flex h-screen bg-background">
         <Sidebar />
+        <MobileHeader title="Member Not Found" onBack={() => router.back()} />
         <div className="flex-1 flex items-center justify-center bg-gray-50/50">
           <p className="text-muted-foreground">Member not found</p>
         </div>
@@ -835,10 +838,11 @@ export default function MemberProfile() {
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
+      <MobileHeader title="Member Profile" onBack={() => router.back()} />
       <div className="flex-1 overflow-auto">
-        <div className="p-8 space-y-6">
+        <div className="p-8 pt-[4.5rem] md:pt-8 space-y-6">
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div className="hidden md:flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="icon" onClick={() => router.back()}>
                 <ArrowLeft className="h-4 w-4" />

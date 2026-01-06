@@ -55,6 +55,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { MobileHeader } from "@/components/mobile-header";
 
 export default function MembersListPage() {
   const router = useRouter();
@@ -199,10 +200,11 @@ export default function MembersListPage() {
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
+      <MobileHeader title="Member Management" onBack={() => router.back()} />
       <div className="flex-1 overflow-auto">
         <div className="pt-[4.5rem] p-8 space-y-8 md:pt-8">
           {/* Header Section */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="hidden md:flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold tracking-tight">
                 Member Management

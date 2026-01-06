@@ -45,6 +45,8 @@ export default function AddMemberPage() {
   );
 }
 
+import { MobileHeader } from "@/components/mobile-header";
+
 function AddMemberForm() {
   const router = useRouter();
   const supabase = createClient();
@@ -198,10 +200,11 @@ function AddMemberForm() {
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
+      <MobileHeader title="Add New Member" onBack={() => router.back()} />
       <div className="flex-1 overflow-auto">
         <div className="pt-[4.5rem] p-8 space-y-8 md:pt-8">
           {/* Header */}
-          <div className="flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => router.back()}>
               <ArrowLeft className="h-4 w-4" />
             </Button>

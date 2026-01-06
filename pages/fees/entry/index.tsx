@@ -42,6 +42,8 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MobileHeader } from "@/components/mobile-header";
+import { useRouter } from "next/router";
 
 interface InterestPayment {
   id: string;
@@ -71,6 +73,7 @@ interface LoanWithMember {
 }
 
 export default function InterestFeeEntryPage() {
+  const router = useRouter();
   const [loans, setLoans] = useState<LoanWithMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -331,10 +334,11 @@ export default function InterestFeeEntryPage() {
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
+      <MobileHeader title="Interest Fee Entry" onBack={() => router.back()} />
       <div className="flex-1 overflow-auto p-8">
         <div className="space-y-8 pt-[4.5rem] md:pt-0">
           {/* Header */}
-          <div>
+          <div className="hidden md:block">
             <h1 className="text-2xl font-bold tracking-tight">
               Interest Collection Entry
             </h1>

@@ -1,5 +1,6 @@
 "use client";
 
+import { MobileHeader } from "@/components/mobile-header";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import { Sidebar } from "@/components/sidebar";
@@ -350,10 +351,11 @@ function LoanApplicationForm() {
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
+      <MobileHeader title="Loan Application" onBack={() => router.back()} />
       <div className="flex-1 overflow-auto bg-background">
-        <div className="p-8 w-full mx-auto space-y-8">
+        <div className="p-8 pt-[4.5rem] md:pt-8 space-y-8">
           {/* Header */}
-          <div className="flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-4">
             <Button
               variant="ghost"
               size="icon"

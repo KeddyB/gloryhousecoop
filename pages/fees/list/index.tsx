@@ -27,6 +27,8 @@ import { createClient } from "@/utils/supabase/client";
 import { format, startOfMonth, addMonths, isBefore } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MobileHeader } from "@/components/mobile-header";
+import { useRouter } from "next/router";
 
 interface FeeRecord {
   id: string;
@@ -98,6 +100,7 @@ interface SupabaseActiveLoan extends Omit<ActiveLoan, 'member'> {
 }
 
 export default function FeeListPage() {
+  const router = useRouter();
   const [payments, setPayments] = useState<InterestPayment[]>([]);
   const [activeLoans, setActiveLoans] = useState<ActiveLoan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -347,11 +350,12 @@ export default function FeeListPage() {
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
+      <MobileHeader title="Interest Fee Management" onBack={() => router.back()} />
       <div className="flex-1 overflow-auto p-8">
         <div className="space-y-8 pt-[4.5rem] md:pt-0">
           
           {/* Header */}
-          <div>
+          <div className="hidden md:block">
             <h1 className="text-2xl font-bold tracking-tight">Interest Fee Management</h1>
             <p className="text-sm text-muted-foreground">
               Track and manage monthly interest fee collections

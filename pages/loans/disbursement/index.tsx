@@ -43,10 +43,13 @@ import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Loan, Disbursement } from "@/lib/types/loans";
+import { MobileHeader } from "@/components/mobile-header";
+import { useRouter } from "next/router";
 
 const HISTORY_PER_PAGE = 5;
 
 export default function DisbursementPage() {
+  const router = useRouter();
   const supabase = createClient();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -214,10 +217,11 @@ export default function DisbursementPage() {
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
+      <MobileHeader title="Loan Disbursement" onBack={() => router.back()} />
       <div className="flex-1 overflow-auto p-8">
-        <div className="w-full mx-auto space-y-8">
+        <div className="space-y-8 pt-[4.5rem] md:pt-0">
           {/* Header */}
-          <div>
+          <div className="hidden md:block">
             <h1 className="text-3xl font-bold tracking-tight text-foreground">
               Loan Disbursement
             </h1>

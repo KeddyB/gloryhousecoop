@@ -94,9 +94,9 @@ export function DashboardContent() {
   if (loading) {
     return (
       <main className="flex-1 overflow-y-auto bg-background">
-        <div className="p-4 md:p-8">
+        <div className="p-4 pt-[4.5rem] md:p-8">
           {/* Header Skeleton */}
-          <div className="flex justify-between items-start mb-6 md:mb-8 pt-12 md:pt-0">
+          <div className="hidden md:flex justify-between items-start mb-6 md:mb-8">
             <div>
               <Skeleton className="h-8 w-40 mb-2 md:h-9 md:w-48" />
               <Skeleton className="h-4 w-48 md:h-5 md:w-64" />
@@ -129,9 +129,9 @@ export function DashboardContent() {
 
   return (
     <main className="flex-1 overflow-y-auto bg-background">
-      <div className="p-4 md:p-8">
+      <div className="p-4 pt-[4.5rem] md:p-8">
         {/* Header */}
-        <div className="flex justify-between items-start mb-6 md:mb-8 pt-12 md:pt-0">
+        <div className="hidden md:flex justify-between items-start mb-6 md:mb-8">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">Dashboard</h1>
             <p className="text-sm md:text-base text-muted-foreground">Welcome back, Here&apos;s your society overview</p>
