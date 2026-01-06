@@ -10,7 +10,7 @@ export default function DashboardPage() {
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
-      <MobileHeader title="Dashboard" onBack={() => router.back()} />
+      <MobileHeader title="Dashboard" showBack={false} />
       <DashboardContent />
     </div>
   )
