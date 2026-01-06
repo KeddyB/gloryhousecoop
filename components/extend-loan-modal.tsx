@@ -103,13 +103,10 @@ export const ExtendLoanModal: React.FC<ExtendLoanModalProps> = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-125 border-none shadow-2xl overflow-hidden p-0 bg-background">
-        <div className="bg-linear-to-r from-blue-600/10 via-indigo-600/10 to-purple-600/10 p-6 border-b">
+        <div className="">
           <DialogHeader>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="p-2 bg-blue-600/20 rounded-lg">
-                <TrendingUp className="h-5 w-5 text-blue-600" />
-              </div>
-              <DialogTitle className="text-xl">Extend Loan Tenure</DialogTitle>
+            <div className="flex items-center">
+              <DialogTitle className="text-xl p-4">Extend Loan Tenure</DialogTitle>
             </div>
           </DialogHeader>
         </div>
@@ -150,8 +147,8 @@ export const ExtendLoanModal: React.FC<ExtendLoanModalProps> = ({
                     relative group cursor-pointer p-4 rounded-xl border-2 transition-all duration-200 text-left w-full
                     ${
                       selectedExtension === months
-                        ? "border-blue-600 bg-blue-50/50 shadow-md ring-1 ring-blue-600/20"
-                        : "border-border hover:border-blue-300 hover:bg-muted/30"
+                        ? "border-black bg-black/5 shadow-md ring-1 ring-black/20"
+                        : "border-border hover:border-black/30 hover:bg-muted/30"
                     }
                   `}
                 >
@@ -159,7 +156,7 @@ export const ExtendLoanModal: React.FC<ExtendLoanModalProps> = ({
                     <span
                       className={`text-lg font-bold ${
                         selectedExtension === months
-                          ? "text-blue-700"
+                          ? "text-black"
                           : "text-foreground"
                       }`}
                     >
@@ -167,7 +164,7 @@ export const ExtendLoanModal: React.FC<ExtendLoanModalProps> = ({
                       <span className="text-sm font-medium">Months</span>
                     </span>
                     {selectedExtension === months && (
-                      <div className="h-4 w-4 rounded-full bg-blue-600 flex items-center justify-center">
+                      <div className="h-4 w-4 rounded-full bg-black flex items-center justify-center">
                         <div className="h-2 w-2 rounded-full bg-white" />
                       </div>
                     )}
@@ -179,7 +176,7 @@ export const ExtendLoanModal: React.FC<ExtendLoanModalProps> = ({
 
           {selectedExtension && (
             <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-              <Card className="border-blue-100 bg-blue-50/30 overflow-hidden">
+              <Card className="border-black/10 bg-black/5 overflow-hidden">
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2 text-muted-foreground">
@@ -188,7 +185,7 @@ export const ExtendLoanModal: React.FC<ExtendLoanModalProps> = ({
                     </div>
                     <Badge
                       variant="secondary"
-                      className="bg-blue-100 text-blue-700 font-bold px-2 py-0.5"
+                      className="bg-black/10 text-black font-bold px-2 py-0.5"
                     >
                       ₦
                       {newInstallmentAmount?.toLocaleString(undefined, {
@@ -211,7 +208,7 @@ export const ExtendLoanModal: React.FC<ExtendLoanModalProps> = ({
                       <Clock className="h-4 w-4" />
                       <span>New Total Tenure</span>
                     </div>
-                    <span className="font-semibold text-blue-700">
+                    <span className="font-semibold text-black">
                       {(loan.tenure || 0) + selectedExtension} Months
                     </span>
                   </div>
@@ -232,7 +229,7 @@ export const ExtendLoanModal: React.FC<ExtendLoanModalProps> = ({
           <Button
             onClick={handleExtend}
             disabled={!selectedExtension || isLoading}
-            className="flex-2 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20"
+            className="flex-2 bg-black hover:bg-blue-700 shadow-lg shadow-blue-600/20"
           >
             {isLoading ? (
               <>

@@ -15,7 +15,7 @@ import {
   User,
   Users,
   Banknote,
-  CheckCircle,
+  CircleCheck,
   ArrowRight,
   AlertCircle,
 } from "lucide-react";
@@ -235,35 +235,34 @@ function AddMemberForm() {
                   return (
                     <div
                       key={step.id}
-                      className={cn(
-                        `flex items-center gap-2 text-sm font-medium`,
-                        {
-                          "text-primary": isActive || isCompleted,
-                          "text-muted-foreground": !isActive && !isCompleted,
-                        }
-                      )}
+                      className="flex flex-col items-center gap-2 md:flex-row"
                     >
-                      {isCompleted ? (
-                        <CheckCircle className="h-5 w-5 text-primary" />
-                      ) : (
-                        <div
-                          className={cn(
-                            `h-5 w-5 rounded-full flex items-center justify-center border-2`,
-                            {
-                              "border-primary": isActive,
-                              "border-gray-300": !isActive,
-                            }
-                          )}
-                        >
-                          <Icon
-                            className={cn(`h-3 w-3`, {
-                              "text-primary": isActive,
-                              "text-gray-400": !isActive,
-                            })}
-                          />
-                        </div>
-                      )}
-                      <span>{step.name}</span>
+                      <div
+                        className={cn(
+                          "h-10 w-10 rounded-full flex items-center justify-center transition-all duration-300 border-2",
+                          isCompleted
+                            ? "bg-black border-black text-white"
+                            : isActive
+                            ? "bg-white border-black text-black"
+                            : "bg-white border-gray-200 text-gray-400"
+                        )}
+                      >
+                        {isCompleted ? (
+                          <CircleCheck className="h-6 w-6" />
+                        ) : (
+                          <Icon className="h-5 w-5" />
+                        )}
+                      </div>
+                      <span
+                        className={cn(
+                          "text-sm font-medium transition-colors hidden md:inline-block",
+                          isActive || isCompleted
+                            ? "text-black"
+                            : "text-gray-400"
+                        )}
+                      >
+                        {step.name}
+                      </span>
                     </div>
                   );
                 })}

@@ -332,7 +332,7 @@ export default function InterestFeeEntryPage() {
     <div className="flex h-screen bg-background">
       <Sidebar />
       <div className="flex-1 overflow-auto p-8">
-        <div className="max-w-7xl mx-auto space-y-8 pt-[4.5rem] md:pt-0">
+        <div className="space-y-8 pt-[4.5rem] md:pt-0">
           {/* Header */}
           <div>
             <h1 className="text-2xl font-bold tracking-tight">

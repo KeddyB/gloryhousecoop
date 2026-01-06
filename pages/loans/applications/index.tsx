@@ -392,7 +392,7 @@ function LoanApplicationForm() {
                   return (
                     <div
                       key={step.id}
-                      className="flex flex-col items-center gap-2 z-10"
+                      className="flex flex-col items-center gap-2 z-10 md:flex-row"
                     >
                       <div
                         className={cn(
@@ -412,7 +412,7 @@ function LoanApplicationForm() {
                       </div>
                       <span
                         className={cn(
-                          "text-[11px] font-medium transition-colors",
+                          "text-[11px] font-medium transition-colors hidden md:inline-block",
                           isActive || isCompleted
                             ? "text-black"
                             : "text-gray-400"

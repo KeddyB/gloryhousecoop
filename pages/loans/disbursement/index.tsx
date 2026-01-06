@@ -36,6 +36,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AmountInput } from "@/components/ui/amount-input";
 import { cn, formatCurrencyShort } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
@@ -227,37 +228,48 @@ export default function DisbursementPage() {
 
           {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="shadow-sm rounded-2xl overflow-hidden">
-              <CardContent className="p-6 flex justify-between items-center">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">
-                    Total Pending Amount
-                  </p>
-                  <h3 className="text-3xl font-bold text-foreground">
-                    ₦{formatCurrencyShort(totalAmountPending)}
-                  </h3>
-                </div>
-                <div className="h-10 w-10 bg-green-50 rounded-xl flex items-center justify-center border border-green-100">
-                  <span className="text-green-600 font-bold text-lg">₦</span>
-                </div>
-              </CardContent>
-            </Card>
+            {isLoading ? (
+              <>
+                <Skeleton className="h-[108px] rounded-2xl" />
+                <Skeleton className="h-[108px] rounded-2xl" />
+              </>
+            ) : (
+              <>
+                <Card className="shadow-sm rounded-2xl overflow-hidden">
+                  <CardContent className="p-6 flex justify-between items-center">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">
+                        Total Pending Amount
+                      </p>
+                      <h3 className="text-3xl font-bold text-foreground">
+                        ₦{formatCurrencyShort(totalAmountPending)}
+                      </h3>
+                    </div>
+                    <div className="h-10 w-10 bg-green-50 rounded-xl flex items-center justify-center border border-green-100">
+                      <span className="text-green-600 font-bold text-lg">
+                        ₦
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
 
-            <Card className="shadow-sm rounded-2xl overflow-hidden">
-              <CardContent className="p-6 flex justify-between items-center">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">
-                    Today&apos;s Disbursed
-                  </p>
-                  <h3 className="text-3xl font-bold text-foreground">
-                    ₦{formatCurrencyShort(totalDisbursedToday)}
-                  </h3>
-                </div>
-                <div className="h-10 w-10 bg-purple-50 rounded-xl flex items-center justify-center border border-purple-100">
-                  <Banknote className="h-5 w-5 text-purple-600" />
-                </div>
-              </CardContent>
-            </Card>
+                <Card className="shadow-sm rounded-2xl overflow-hidden">
+                  <CardContent className="p-6 flex justify-between items-center">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">
+                        Today&apos;s Disbursed
+                      </p>
+                      <h3 className="text-3xl font-bold text-foreground">
+                        ₦{formatCurrencyShort(totalDisbursedToday)}
+                      </h3>
+                    </div>
+                    <div className="h-10 w-10 bg-purple-50 rounded-xl flex items-center justify-center border border-purple-100">
+                      <Banknote className="h-5 w-5 text-purple-600" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
           </div>
 
           {/* Table: Loans Ready for Disbursement */}
@@ -301,71 +313,92 @@ export default function DisbursementPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="h-32 text-center">
-                        <Loader2 className="h-6 w-6 animate-spin mx-auto text-gray-300" />
-                      </TableCell>
-                    </TableRow>
-                  ) : filteredPending.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={6}
-                        className="h-32 text-center text-xs text-gray-400 font-medium"
-                      >
-                        No pending loans found.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredPending.map((loan) => (
-                      <TableRow
-                        key={loan.id}
-                        className="border-gray-50 hover:bg-gray-50/30 transition-colors"
-                      >
-                        <TableCell className="px-8 py-6">
-                          <div className="flex items-center gap-4">
-                            <Avatar className="h-11 w-11 bg-gray-100">
-                              <AvatarFallback className="text-sm font-bold text-muted-foreground">
-                                {loan.member?.name?.charAt(0)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="font-semibold text-foreground text-[15px] leading-tight">
-                                {loan.member?.name}
-                              </p>
-                              <p className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">
-                                {loan.member?.member_id}
-                              </p>
+                  {isLoading
+                    ? [...Array(3)].map((_, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="px-8 py-6">
+                            <div className="flex items-center gap-4">
+                              <Skeleton className="h-11 w-11 rounded-full" />
+                              <div>
+                                <Skeleton className="h-4 w-24" />
+                                <Skeleton className="h-3 w-16 mt-2" />
+                              </div>
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center font-semibold text-foreground text-[15px]">
-                          {loan.loan_amount.toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-center text-[15px] font-semibold text-foreground">
-                          {loan.tenure} months
-                        </TableCell>
-                        <TableCell className="text-center text-[15px] font-semibold text-foreground">
-                          {loan.interest_rate}%
-                        </TableCell>
-                        <TableCell className="text-center text-sm font-semibold text-foreground">
-                          {loan.created_at
-                            ? format(new Date(loan.created_at), "dd-MM-yyyy")
-                            : "N/A"}
-                        </TableCell>
-                        <TableCell className="text-right px-8">
-                          <Button
-                            size="sm"
-                            className="bg-black hover:bg-gray-800 text-xs h-9 px-4 font-bold rounded-lg gap-1.5 transition-all active:scale-95"
-                            onClick={() => handleDisburseClick(loan)}
-                          >
-                            <Banknote className="h-3 w-3" />
-                            Disburse
-                          </Button>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Skeleton className="h-4 w-20 mx-auto" />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Skeleton className="h-4 w-20 mx-auto" />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Skeleton className="h-4 w-12 mx-auto" />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Skeleton className="h-4 w-24 mx-auto" />
+                          </TableCell>
+                          <TableCell className="text-right px-8">
+                            <Skeleton className="h-9 w-[108px] rounded-lg" />
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    : filteredPending.length === 0
+                    ? <TableRow>
+                        <TableCell
+                          colSpan={6}
+                          className="h-32 text-center text-xs text-gray-400 font-medium"
+                        >
+                          No pending loans found.
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
+                    : filteredPending.map((loan) => (
+                        <TableRow
+                          key={loan.id}
+                          className="border-gray-50 hover:bg-gray-50/30 transition-colors"
+                        >
+                          <TableCell className="px-8 py-6">
+                            <div className="flex items-center gap-4">
+                              <Avatar className="h-11 w-11 bg-gray-100">
+                                <AvatarFallback className="text-sm font-bold text-muted-foreground">
+                                  {loan.member?.name?.charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="font-semibold text-foreground text-[15px] leading-tight">
+                                  {loan.member?.name}
+                                </p>
+                                <p className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">
+                                  {loan.member?.member_id}
+                                </p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center font-semibold text-foreground text-[15px]">
+                            {loan.loan_amount.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-center text-[15px] font-semibold text-foreground">
+                            {loan.tenure} months
+                          </TableCell>
+                          <TableCell className="text-center text-[15px] font-semibold text-foreground">
+                            {loan.interest_rate}%
+                          </TableCell>
+                          <TableCell className="text-center text-sm font-semibold text-foreground">
+                            {loan.created_at
+                              ? format(new Date(loan.created_at), "dd-MM-yyyy")
+                              : "N/A"}
+                          </TableCell>
+                          <TableCell className="text-right px-8">
+                            <Button
+                              size="sm"
+                              className="bg-black hover:bg-gray-800 text-xs h-9 px-4 font-bold rounded-lg gap-1.5 transition-all active:scale-95"
+                              onClick={() => handleDisburseClick(loan)}
+                            >
+                              <Banknote className="h-3 w-3" />
+                              Disburse
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
                 </TableBody>
               </Table>
             </CardContent>
@@ -400,49 +433,64 @@ export default function DisbursementPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="h-32 text-center">
-                        <Loader2 className="h-6 w-6 animate-spin mx-auto text-gray-300" />
-                      </TableCell>
-                    </TableRow>
-                  ) : historyLoans.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={5}
-                        className="h-32 text-center text-xs text-gray-400 font-medium"
-                      >
-                        No disbursement history.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    historyLoans.map((history) => (
-                      <TableRow
-                        key={history.id}
-                        className="border-gray-50 hover:bg-gray-50/30 transition-colors"
-                      >
-                        <TableCell className="px-8 py-6 font-semibold text-foreground text-[15px]">
-                          {history.loan?.member?.name}
-                        </TableCell>
-                        <TableCell className="text-center font-semibold text-foreground text-[15px]">
-                          {history.disbursement_amount.toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider border border-gray-100 text-muted-foreground bg-gray-50">
-                            {history.method}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-center text-sm font-semibold text-foreground">
-                          {history.created_at
-                            ? format(new Date(history.created_at), "dd-MM-yyyy")
-                            : "N/A"}
-                        </TableCell>
-                        <TableCell className="text-right px-8 text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                          {history.disbursed_by_name || history.disbursed_by}
+                  {isLoading
+                    ? [...Array(5)].map((_, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="px-8 py-6">
+                            <Skeleton className="h-4 w-32" />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Skeleton className="h-4 w-20 mx-auto" />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Skeleton className="h-6 w-24 mx-auto rounded-lg" />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Skeleton className="h-4 w-24 mx-auto" />
+                          </TableCell>
+                          <TableCell className="text-right px-8">
+                            <Skeleton className="h-4 w-20 ml-auto" />
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    : historyLoans.length === 0
+                    ? <TableRow>
+                        <TableCell
+                          colSpan={5}
+                          className="h-32 text-center text-xs text-gray-400 font-medium"
+                        >
+                          No disbursement history.
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
+                    : historyLoans.map((history) => (
+                        <TableRow
+                          key={history.id}
+                          className="border-gray-50 hover:bg-gray-50/30 transition-colors"
+                        >
+                          <TableCell className="px-8 py-6 font-semibold text-foreground text-[15px]">
+                            {history.loan?.member?.name}
+                          </TableCell>
+                          <TableCell className="text-center font-semibold text-foreground text-[15px]">
+                            {history.disbursement_amount.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider border border-gray-100 text-muted-foreground bg-gray-50">
+                              {history.method}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-center text-sm font-semibold text-foreground">
+                            {history.created_at
+                              ? format(
+                                  new Date(history.created_at),
+                                  "dd-MM-yyyy"
+                                )
+                              : "N/A"}
+                          </TableCell>
+                          <TableCell className="text-right px-8 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                            {history.disbursed_by_name || history.disbursed_by}
+                          </TableCell>
+                        </TableRow>
+                      ))}
                 </TableBody>
               </Table>
 
