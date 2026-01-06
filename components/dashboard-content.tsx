@@ -23,6 +23,7 @@ export function DashboardContent() {
     const fetchStats = async () => {
       setLoading(true)
       const supabase = createClient()
+      const now = new Date() // Declared once here
       
       // Get total members
       const { count: totalCount } = await supabase
@@ -34,7 +35,6 @@ export function DashboardContent() {
       }
 
       // Get new members this month
-      const now = new Date()
       const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
       
       const { count: newCount } = await supabase
@@ -82,9 +82,38 @@ export function DashboardContent() {
 
       const disbursedSum = loanData?.reduce((sum, item) => sum + (Number(item.loan_amount) || 0), 0) || 0
 
-      // Profit = (Interest + Repayments) - Disbursed
-      const profit = (interestSum + repaymentSum) - disbursedSum
-      setTotalProfit(`₦${profit.toLocaleString()}`)
+      // Calculate Total Profit Expected (Monthly interest expected for the current month)
+      const { data: allLoansDataWithDates, error: allLoansWithDatesError } = await supabase
+        .from('loans')
+        .select('loan_amount, interest_rate, created_at, disbursements(created_at), tenure')
+        .or('state.eq.active,state.eq.disbursed')
+
+      let expectedMonthlyInterestSum = 0
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1) // Start of the current calendar month
+
+      if (allLoansDataWithDates) {
+        allLoansDataWithDates.forEach((loan) => {
+          const disbursedDateStr = loan.disbursements?.[0]?.created_at || loan.created_at;
+          const loanStartDate = new Date(disbursedDateStr); // Actual start date of the loan
+
+          const loanEndDate = new Date(loanStartDate.getFullYear(), loanStartDate.getMonth() + loan.tenure, loanStartDate.getDate()); // End date of the loan
+
+          // Check if the current month falls within the active period of the loan
+          // and if a payment is expected for this specific month
+          const firstDayOfLoanMonth = new Date(loanStartDate.getFullYear(), loanStartDate.getMonth(), 1);
+          const lastDayOfLoanMonth = new Date(loanStartDate.getFullYear(), loanStartDate.getMonth() + 1, 0);
+
+          if (
+              currentMonthStart >= firstDayOfLoanMonth &&
+              currentMonthStart <= loanEndDate
+          ) {
+              const monthlyInterest = (loan.loan_amount * loan.interest_rate) / 100;
+              expectedMonthlyInterestSum += monthlyInterest;
+          }
+        });
+      }
+      
+      setTotalProfit(`₦${expectedMonthlyInterestSum.toLocaleString()}`)
       setLoading(false)
     }
 
@@ -94,9 +123,9 @@ export function DashboardContent() {
   if (loading) {
     return (
       <main className="flex-1 overflow-y-auto bg-background">
-        <div className="p-4 md:p-8">
+        <div className="p-4 pt-[4.5rem] md:p-8">
           {/* Header Skeleton */}
-          <div className="flex justify-between items-start mb-6 md:mb-8 pt-12 md:pt-0">
+          <div className="hidden md:flex justify-between items-start mb-6 md:mb-8">
             <div>
               <Skeleton className="h-8 w-40 mb-2 md:h-9 md:w-48" />
               <Skeleton className="h-4 w-48 md:h-5 md:w-64" />
@@ -129,9 +158,9 @@ export function DashboardContent() {
 
   return (
     <main className="flex-1 overflow-y-auto bg-background">
-      <div className="p-4 md:p-8">
+      <div className="p-4 pt-[4.5rem] md:p-8">
         {/* Header */}
-        <div className="flex justify-between items-start mb-6 md:mb-8 pt-12 md:pt-0">
+        <div className="hidden md:flex justify-between items-start mb-6 md:mb-8">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">Dashboard</h1>
             <p className="text-sm md:text-base text-muted-foreground">Welcome back, Here&apos;s your society overview</p>
@@ -143,7 +172,7 @@ export function DashboardContent() {
           <KpiCard title="Total Members" value={totalMembers} change={newMembersText} icon="users" loading={loading} />
           <KpiCard title="Interest Monthly Fees" value={totalInterest} change="Total collected" icon="wallet" loading={loading} />
           <KpiCard title="Active Loans" value={activeLoansCount} change="Currently active loans" icon="briefcase" loading={loading} />
-          <KpiCard title="Total Profit" value={totalProfit} change="Net cash flow" icon="trending" loading={loading} />
+          <KpiCard title="Total Profit Expected" value={totalProfit} change="Net cash flow" icon="trending" loading={loading} />
         </div>
 
         {/* Charts */}

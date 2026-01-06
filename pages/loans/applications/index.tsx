@@ -1,5 +1,6 @@
 "use client";
 
+import { MobileHeader } from "@/components/mobile-header";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import { Sidebar } from "@/components/sidebar";
@@ -228,8 +229,6 @@ function LoanApplicationForm() {
         if (
           !formData.loanAmount ||
           !formData.interestRate ||
-          !formData.collateralType ||
-          !formData.collateralValue ||
           !formData.tenure ||
           !formData.purpose ||
           !formData.paymentInterval
@@ -254,8 +253,11 @@ function LoanApplicationForm() {
         }
         break;
       case 3:
-        // Third party details are optional now
+        // Third party details are optional
         break;
+      case 4:
+        // Document upload is optional
+        return true;
       default:
         break;
     }
@@ -326,8 +328,7 @@ function LoanApplicationForm() {
         return (
           !!formData.loanAmount &&
           !!formData.interestRate &&
-          !!formData.collateralType &&
-          !!formData.collateralValue &&
+          // collateralType and collateralValue are now optional
           !!formData.tenure &&
           !!formData.purpose &&
           !!formData.paymentInterval
@@ -336,7 +337,8 @@ function LoanApplicationForm() {
         // Optional
         return true;
       case 4:
-        return !!formData.collateralDocsUrl && !!formData.loanAgreementUrl;
+        // Document upload is optional
+        return true;
       default:
         return true;
     }
@@ -350,10 +352,11 @@ function LoanApplicationForm() {
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
+      <MobileHeader title="Loan Application" onBack={() => router.back()} />
       <div className="flex-1 overflow-auto bg-background">
-        <div className="p-8 w-full mx-auto space-y-8">
+        <div className="p-8 pt-[4.5rem] md:pt-8 space-y-8">
           {/* Header */}
-          <div className="flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-4">
             <Button
               variant="ghost"
               size="icon"
@@ -392,7 +395,7 @@ function LoanApplicationForm() {
                   return (
                     <div
                       key={step.id}
-                      className="flex flex-col items-center gap-2 z-10"
+                      className="flex flex-col items-center gap-2 z-10 md:flex-row"
                     >
                       <div
                         className={cn(
@@ -412,7 +415,7 @@ function LoanApplicationForm() {
                       </div>
                       <span
                         className={cn(
-                          "text-[11px] font-medium transition-colors",
+                          "text-[11px] font-medium transition-colors hidden md:inline-block",
                           isActive || isCompleted
                             ? "text-black"
                             : "text-gray-400"
@@ -601,7 +604,7 @@ function LoanApplicationForm() {
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">
-                        Collateral Type *
+                        Collateral Type
                       </label>
                       <Input
                         name="collateralType"
@@ -615,7 +618,7 @@ function LoanApplicationForm() {
 
                     <div className="space-y-2">
                       <label className="text-sm font-medium">
-                        Collateral Value *
+                        Collateral Value
                       </label>
                       <AmountInput
                         value={formData.collateralValue}

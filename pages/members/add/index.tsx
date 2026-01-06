@@ -15,7 +15,7 @@ import {
   User,
   Users,
   Banknote,
-  CheckCircle,
+  CircleCheck,
   ArrowRight,
   AlertCircle,
 } from "lucide-react";
@@ -26,14 +26,14 @@ const steps = [
     id: 1,
     name: "Personal Information",
     icon: User,
-    fields: ["full_name", "phone", "email", "location"],
+    fields: ["full_name"],
   },
   { id: 2, name: "Nominee Details", icon: Users, fields: [] }, // No required fields
   {
     id: 3,
     name: "Bank Information",
     icon: Banknote,
-    fields: ["account_number", "bank_name"],
+    fields: [], // Make bank information optional
   },
 ];
 
@@ -44,6 +44,8 @@ export default function AddMemberPage() {
     </ErrorBoundary>
   );
 }
+
+import { MobileHeader } from "@/components/mobile-header";
 
 function AddMemberForm() {
   const router = useRouter();
@@ -198,10 +200,11 @@ function AddMemberForm() {
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
+      <MobileHeader title="Add New Member" onBack={() => router.back()} />
       <div className="flex-1 overflow-auto">
         <div className="pt-[4.5rem] p-8 space-y-8 md:pt-8">
           {/* Header */}
-          <div className="flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => router.back()}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -235,35 +238,34 @@ function AddMemberForm() {
                   return (
                     <div
                       key={step.id}
-                      className={cn(
-                        `flex items-center gap-2 text-sm font-medium`,
-                        {
-                          "text-primary": isActive || isCompleted,
-                          "text-muted-foreground": !isActive && !isCompleted,
-                        }
-                      )}
+                      className="flex flex-col items-center gap-2 md:flex-row"
                     >
-                      {isCompleted ? (
-                        <CheckCircle className="h-5 w-5 text-primary" />
-                      ) : (
-                        <div
-                          className={cn(
-                            `h-5 w-5 rounded-full flex items-center justify-center border-2`,
-                            {
-                              "border-primary": isActive,
-                              "border-gray-300": !isActive,
-                            }
-                          )}
-                        >
-                          <Icon
-                            className={cn(`h-3 w-3`, {
-                              "text-primary": isActive,
-                              "text-gray-400": !isActive,
-                            })}
-                          />
-                        </div>
-                      )}
-                      <span>{step.name}</span>
+                      <div
+                        className={cn(
+                          "h-10 w-10 rounded-full flex items-center justify-center transition-all duration-300 border-2",
+                          isCompleted
+                            ? "bg-black border-black text-white"
+                            : isActive
+                            ? "bg-white border-black text-black"
+                            : "bg-white border-gray-200 text-gray-400"
+                        )}
+                      >
+                        {isCompleted ? (
+                          <CircleCheck className="h-6 w-6" />
+                        ) : (
+                          <Icon className="h-5 w-5" />
+                        )}
+                      </div>
+                      <span
+                        className={cn(
+                          "text-sm font-medium transition-colors hidden md:inline-block",
+                          isActive || isCompleted
+                            ? "text-black"
+                            : "text-gray-400"
+                        )}
+                      >
+                        {step.name}
+                      </span>
                     </div>
                   );
                 })}
@@ -298,7 +300,7 @@ function AddMemberForm() {
                     </div>
                     <div className="space-y-2">
                       <label htmlFor="phone" className="text-sm font-medium">
-                        Phone Number *
+                        Phone Number
                       </label>
                       <Input
                         id="phone"
@@ -311,7 +313,7 @@ function AddMemberForm() {
                     </div>
                     <div className="space-y-2">
                       <label htmlFor="email" className="text-sm font-medium">
-                        Email Address *
+                        Email Address
                       </label>
                       <Input
                         id="email"
@@ -325,7 +327,7 @@ function AddMemberForm() {
                     </div>
                     <div className="space-y-2">
                       <label htmlFor="location" className="text-sm font-medium">
-                        Location *
+                        Location
                       </label>
                       <Input
                         id="location"
@@ -391,7 +393,7 @@ function AddMemberForm() {
                         htmlFor="account_number"
                         className="text-sm font-medium"
                       >
-                        Account Number *
+                        Account Number
                       </label>
                       <Input
                         id="account_number"
@@ -409,7 +411,7 @@ function AddMemberForm() {
                         htmlFor="bank_name"
                         className="text-sm font-medium"
                       >
-                        Bank Name *
+                        Bank Name
                       </label>
                       <Input
                         id="bank_name"

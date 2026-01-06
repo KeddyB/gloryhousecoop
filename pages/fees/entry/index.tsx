@@ -42,6 +42,10 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MobileHeader } from "@/components/mobile-header";
+import { useRouter } from "next/router";
+import { DatePicker } from "@/components/ui/date-picker";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface InterestPayment {
   id: string;
@@ -71,6 +75,7 @@ interface LoanWithMember {
 }
 
 export default function InterestFeeEntryPage() {
+  const router = useRouter();
   const [loans, setLoans] = useState<LoanWithMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -84,10 +89,11 @@ export default function InterestFeeEntryPage() {
   // Form states
   const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
   const [paymentMethod, setPaymentMethod] = useState("Cash");
-  const [paymentDate, setPaymentDate] = useState(
-    format(new Date(), "yyyy-MM-dd")
+  const [paymentDate, setPaymentDate] = useState<Date | undefined>(
+    new Date()
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isMobile = useIsMobile();
 
   const supabase = createClient();
   const { toast } = useToast();
@@ -95,7 +101,7 @@ export default function InterestFeeEntryPage() {
   const getLoanStartDate = useCallback((loan: LoanWithMember) => {
     const disbursedDate =
       loan.disbursements?.[0]?.created_at || loan.created_at;
-    return addMonths(new Date(disbursedDate), 1);
+    return new Date(disbursedDate);
   }, []);
 
   const getLoanEndDate = useCallback(
@@ -113,25 +119,36 @@ export default function InterestFeeEntryPage() {
       const now = new Date();
       const unpaidMonths: Date[] = [];
 
+      const dueDay = startDue.getDate(); // Get the day of the month from the loan start date
+
       let iterDate = startOfMonth(startDue);
       const currentMonthStart = startOfMonth(now);
 
+      // Don't show unpaid months for future months
       if (isBefore(currentMonthStart, iterDate)) {
         return [];
       }
 
+      // Calculate payments up to the current month or loan end date, whichever comes first
+      // A payment for the current month is only considered "unpaid" after its due date has passed.
+      // So, we iterate up to and including the current month, then apply the due date logic.
       let calculationLimit = addMonths(currentMonthStart, 1);
 
       if (isBefore(endDate, calculationLimit)) {
         calculationLimit = endDate;
       }
-
+      
       while (isBefore(iterDate, calculationLimit)) {
         const isPaid = loan.interest_payments.some((p) =>
           isSameMonth(new Date(p.payment_for_month), iterDate)
         );
 
-        if (!isPaid) {
+        // Construct the specific due date for this iterDate's month
+        // setDate handles months with fewer days by clamping to the last day of the month
+        const monthlyDueDate = new Date(iterDate.getFullYear(), iterDate.getMonth(), dueDay);
+
+        // If the payment is not paid AND the monthly due date has passed
+        if (!isPaid && (isBefore(monthlyDueDate, now) || isSameMonth(monthlyDueDate, now) && now.getDate() >= monthlyDueDate.getDate())) {
           unpaidMonths.push(new Date(iterDate));
         }
         iterDate = addMonths(iterDate, 1);
@@ -263,7 +280,14 @@ export default function InterestFeeEntryPage() {
   }, [fetchData]);
 
   const handleSubmitPayment = async () => {
-    if (!selectedLoan || selectedMonths.length === 0) return;
+    if (!selectedLoan || selectedMonths.length === 0 || !paymentDate) {
+      toast({
+        title: "Error",
+        description: "Please select a payment date.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -283,7 +307,7 @@ export default function InterestFeeEntryPage() {
         amount_paid: monthlyInterest,
         payment_for_month: month,
         payment_method: paymentMethod,
-        payment_date: new Date(paymentDate).toISOString(),
+        payment_date: paymentDate.toISOString(),
         created_by: user?.id,
         created_by_name: operatorName,
       }));
@@ -318,6 +342,9 @@ export default function InterestFeeEntryPage() {
   };
 
   const filteredLoans = useMemo(() => {
+    if (isMobile && selectedLoan) {
+      return [selectedLoan];
+    }
     const query = searchQuery.toLowerCase();
     return loans.filter(
       (l) =>
@@ -326,15 +353,16 @@ export default function InterestFeeEntryPage() {
           .includes(query) ||
         (l.member.member_id || "").toLowerCase().includes(query)
     );
-  }, [loans, searchQuery]);
+  }, [loans, searchQuery, selectedLoan, isMobile]);
 
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
+      <MobileHeader title="Interest Fee Entry" onBack={() => router.back()} />
       <div className="flex-1 overflow-auto p-8">
-        <div className="max-w-7xl mx-auto space-y-8 pt-[4.5rem] md:pt-0">
+        <div className="space-y-8 pt-[4.5rem] md:pt-0">
           {/* Header */}
-          <div>
+          <div className="hidden md:block">
             <h1 className="text-2xl font-bold tracking-tight">
               Interest Collection Entry
             </h1>
@@ -381,20 +409,33 @@ export default function InterestFeeEntryPage() {
             )}
           </div>
 
-          <div className="grid grid-cols-12 gap-8">
+          <div className="flex flex-col lg:flex-row gap-8">
             {/* Member List Section - Left 7 Cols */}
-            <Card className="col-span-12 lg:col-span-7 h-fit border-border shadow-sm">
+            <Card className="w-full lg:w-7/12 h-fit border-border shadow-sm">
               <CardContent className="p-6 space-y-6">
-                <h2 className="text-lg font-semibold">Member List</h2>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search by name, member ID, phone or email..."
-                    className="pl-9 bg-muted/50 border-none h-11"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">Member List</h2>
+                  {isMobile && selectedLoan && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedLoan(null)}
+                    >
+                      Clear Selection
+                    </Button>
+                  )}
                 </div>
+                {(!isMobile || !selectedLoan) && (
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by name, member ID, phone or email..."
+                      className="pl-9 bg-muted/50 border-none h-11"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                )}
 
                 <div className="space-y-3">
                   {isLoading ? (
@@ -477,7 +518,7 @@ export default function InterestFeeEntryPage() {
             </Card>
 
             {/* Interest Details Section - Right 5 Cols */}
-            <Card className="col-span-12 lg:col-span-5 border-border shadow-sm bg-card h-fit rounded-xl">
+            <Card className="w-full lg:w-5/12 border-border shadow-sm bg-card h-fit rounded-xl">
               <CardContent className="p-6">
                 <h2 className="text-lg font-semibold mb-6">Interest Details</h2>
                 {selectedLoan ? (
@@ -581,15 +622,11 @@ export default function InterestFeeEntryPage() {
                       <label className="text-sm font-medium">
                         Payment Date
                       </label>
-                      <div className="relative">
-                        <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          type="date"
-                          className="pl-10 h-12 bg-background border-input rounded-lg w-full"
-                          value={paymentDate}
-                          onChange={(e) => setPaymentDate(e.target.value)}
-                        />
-                      </div>
+                      <DatePicker
+                        date={paymentDate}
+                        setDate={setPaymentDate}
+                        className="h-12 bg-background border-input rounded-lg w-full"
+                      />
                     </div>
 
                     {/* Payment Method */}

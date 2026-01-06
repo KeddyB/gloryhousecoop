@@ -32,6 +32,8 @@ import { createClient } from "@/utils/supabase/client";
 
 import { ActivityLog } from "@/components/activity-log";
 import { AnnualDataAnalytics } from "@/components/annual-data-analytics";
+import { MobileHeader } from "@/components/mobile-header";
+import { useRouter } from "next/router";
 
 interface User {
   id: string;
@@ -42,6 +44,7 @@ interface User {
 const supabase = createClient();
 
 export default function SettingsPage() {
+  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -232,9 +235,10 @@ export default function SettingsPage() {
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
+      <MobileHeader title="Settings" onBack={() => router.back()} />
       <div className="flex-1 overflow-auto">
         <div className="pt-[4.5rem] p-8 space-y-8 md:pt-8">
-          <div>
+          <div className="hidden md:block">
             <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
             <p className="text-muted-foreground">
               Manage system configuration and preferences
