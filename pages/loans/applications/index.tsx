@@ -229,8 +229,6 @@ function LoanApplicationForm() {
         if (
           !formData.loanAmount ||
           !formData.interestRate ||
-          !formData.collateralType ||
-          !formData.collateralValue ||
           !formData.tenure ||
           !formData.purpose ||
           !formData.paymentInterval
@@ -255,8 +253,11 @@ function LoanApplicationForm() {
         }
         break;
       case 3:
-        // Third party details are optional now
+        // Third party details are optional
         break;
+      case 4:
+        // Document upload is optional
+        return true;
       default:
         break;
     }
@@ -327,8 +328,7 @@ function LoanApplicationForm() {
         return (
           !!formData.loanAmount &&
           !!formData.interestRate &&
-          !!formData.collateralType &&
-          !!formData.collateralValue &&
+          // collateralType and collateralValue are now optional
           !!formData.tenure &&
           !!formData.purpose &&
           !!formData.paymentInterval
@@ -337,7 +337,8 @@ function LoanApplicationForm() {
         // Optional
         return true;
       case 4:
-        return !!formData.collateralDocsUrl && !!formData.loanAgreementUrl;
+        // Document upload is optional
+        return true;
       default:
         return true;
     }
@@ -603,7 +604,7 @@ function LoanApplicationForm() {
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">
-                        Collateral Type *
+                        Collateral Type
                       </label>
                       <Input
                         name="collateralType"
@@ -617,7 +618,7 @@ function LoanApplicationForm() {
 
                     <div className="space-y-2">
                       <label className="text-sm font-medium">
-                        Collateral Value *
+                        Collateral Value
                       </label>
                       <AmountInput
                         value={formData.collateralValue}

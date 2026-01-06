@@ -45,6 +45,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MobileHeader } from "@/components/mobile-header";
 import { useRouter } from "next/router";
 import { DatePicker } from "@/components/ui/date-picker";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface InterestPayment {
   id: string;
@@ -92,6 +93,7 @@ export default function InterestFeeEntryPage() {
     new Date()
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isMobile = useIsMobile();
 
   const supabase = createClient();
   const { toast } = useToast();
@@ -117,25 +119,36 @@ export default function InterestFeeEntryPage() {
       const now = new Date();
       const unpaidMonths: Date[] = [];
 
+      const dueDay = startDue.getDate(); // Get the day of the month from the loan start date
+
       let iterDate = startOfMonth(startDue);
       const currentMonthStart = startOfMonth(now);
 
+      // Don't show unpaid months for future months
       if (isBefore(currentMonthStart, iterDate)) {
         return [];
       }
 
+      // Calculate payments up to the current month or loan end date, whichever comes first
+      // A payment for the current month is only considered "unpaid" after its due date has passed.
+      // So, we iterate up to and including the current month, then apply the due date logic.
       let calculationLimit = addMonths(currentMonthStart, 1);
 
       if (isBefore(endDate, calculationLimit)) {
         calculationLimit = endDate;
       }
-
+      
       while (isBefore(iterDate, calculationLimit)) {
         const isPaid = loan.interest_payments.some((p) =>
           isSameMonth(new Date(p.payment_for_month), iterDate)
         );
 
-        if (!isPaid) {
+        // Construct the specific due date for this iterDate's month
+        // setDate handles months with fewer days by clamping to the last day of the month
+        const monthlyDueDate = new Date(iterDate.getFullYear(), iterDate.getMonth(), dueDay);
+
+        // If the payment is not paid AND the monthly due date has passed
+        if (!isPaid && (isBefore(monthlyDueDate, now) || isSameMonth(monthlyDueDate, now) && now.getDate() >= monthlyDueDate.getDate())) {
           unpaidMonths.push(new Date(iterDate));
         }
         iterDate = addMonths(iterDate, 1);
@@ -329,7 +342,7 @@ export default function InterestFeeEntryPage() {
   };
 
   const filteredLoans = useMemo(() => {
-    if (selectedLoan) {
+    if (isMobile && selectedLoan) {
       return [selectedLoan];
     }
     const query = searchQuery.toLowerCase();
@@ -340,7 +353,7 @@ export default function InterestFeeEntryPage() {
           .includes(query) ||
         (l.member.member_id || "").toLowerCase().includes(query)
     );
-  }, [loans, searchQuery, selectedLoan]);
+  }, [loans, searchQuery, selectedLoan, isMobile]);
 
   return (
     <div className="flex h-screen bg-background">
@@ -400,16 +413,29 @@ export default function InterestFeeEntryPage() {
             {/* Member List Section - Left 7 Cols */}
             <Card className="w-full lg:w-7/12 h-fit border-border shadow-sm">
               <CardContent className="p-6 space-y-6">
-                <h2 className="text-lg font-semibold">Member List</h2>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search by name, member ID, phone or email..."
-                    className="pl-9 bg-muted/50 border-none h-11"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">Member List</h2>
+                  {isMobile && selectedLoan && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedLoan(null)}
+                    >
+                      Clear Selection
+                    </Button>
+                  )}
                 </div>
+                {(!isMobile || !selectedLoan) && (
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by name, member ID, phone or email..."
+                      className="pl-9 bg-muted/50 border-none h-11"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                )}
 
                 <div className="space-y-3">
                   {isLoading ? (

@@ -26,14 +26,14 @@ const steps = [
     id: 1,
     name: "Personal Information",
     icon: User,
-    fields: ["full_name", "phone", "email", "location"],
+    fields: ["full_name"],
   },
   { id: 2, name: "Nominee Details", icon: Users, fields: [] }, // No required fields
   {
     id: 3,
     name: "Bank Information",
     icon: Banknote,
-    fields: ["account_number", "bank_name"],
+    fields: [], // Make bank information optional
   },
 ];
 
@@ -300,7 +300,7 @@ function AddMemberForm() {
                     </div>
                     <div className="space-y-2">
                       <label htmlFor="phone" className="text-sm font-medium">
-                        Phone Number *
+                        Phone Number
                       </label>
                       <Input
                         id="phone"
@@ -313,7 +313,7 @@ function AddMemberForm() {
                     </div>
                     <div className="space-y-2">
                       <label htmlFor="email" className="text-sm font-medium">
-                        Email Address *
+                        Email Address
                       </label>
                       <Input
                         id="email"
@@ -327,7 +327,7 @@ function AddMemberForm() {
                     </div>
                     <div className="space-y-2">
                       <label htmlFor="location" className="text-sm font-medium">
-                        Location *
+                        Location
                       </label>
                       <Input
                         id="location"
@@ -393,7 +393,7 @@ function AddMemberForm() {
                         htmlFor="account_number"
                         className="text-sm font-medium"
                       >
-                        Account Number *
+                        Account Number
                       </label>
                       <Input
                         id="account_number"
@@ -411,7 +411,7 @@ function AddMemberForm() {
                         htmlFor="bank_name"
                         className="text-sm font-medium"
                       >
-                        Bank Name *
+                        Bank Name
                       </label>
                       <Input
                         id="bank_name"
