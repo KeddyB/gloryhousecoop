@@ -14,7 +14,8 @@ export function MobileHeader({
   showBack?: boolean;
 }) {
   return (
-    <div className="md:hidden flex items-center fixed top-0 left-0 right-0 bg-background p-4 border-b z-20 h-16">
+    <div className="md:hidden flex items-center justify-between fixed top-0 left-0 right-0 bg-background p-4 border-b z-20 h-16">
+      {/* Left side */}
       <div className="flex items-center gap-3">
         <Image
           src="/favicon.ico"
@@ -29,10 +30,14 @@ export function MobileHeader({
           </Button>
         )}
       </div>
-      <div className="flex-1 text-center">
+
+      {/* Centered Title */}
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
         <h1 className="text-lg font-bold truncate">{title}</h1>
       </div>
-      <div className="w-10"></div>      {/* Placeholder for hamburger menu to balance flexbox */}
+
+      {/* Right side placeholder for hamburger */}
+      <div className="w-10 h-10"></div>
     </div>
   );
 }
