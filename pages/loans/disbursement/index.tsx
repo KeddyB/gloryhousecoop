@@ -57,10 +57,7 @@ export default function DisbursementPage() {
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pendingLoans, setPendingLoans] = useState<Loan[]>([]);
-  const [historyLoans, setHistoryLoans] = useState<Disbursement[]>([]);
-  const [allDisbursements, setAllDisbursements] = useState<Disbursement[]>([]);
-  const [historyPage, setHistoryPage] = useState(1);
-  const [totalHistoryCount, setTotalHistoryCount] = useState(0);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [disbursementMethod, setDisbursementMethod] = useState("");
   const [disbursementAmount, setDisbursementAmount] = useState("");
@@ -68,6 +65,9 @@ export default function DisbursementPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isMobile = useIsMobile();
   const [historySearchQuery, setHistorySearchQuery] = useState("");
+
+  const [allDisbursements, setAllDisbursements] = useState<Disbursement[]>([]);
+  const [historyPage, setHistoryPage] = useState(1);
 
   const fetchPendingLoans = useCallback(async () => {
     const { data, error } = await supabase
@@ -119,10 +119,9 @@ export default function DisbursementPage() {
     init();
   }, [fetchPendingLoans, fetchHistory]);
 
-  const filteredAndPaginatedHistory = useMemo(() => {
-    // Filter logic
+  const { paginatedHistory, totalFilteredCount } = useMemo(() => {
     const filtered = allDisbursements.filter(disbursement => {
-      if (!historySearchQuery) return true; // Show all if no search query
+      if (!historySearchQuery) return true;
 
       const query = historySearchQuery.toLowerCase();
       const memberName = disbursement.loan?.member?.name?.toLowerCase() || "";
@@ -132,26 +131,19 @@ export default function DisbursementPage() {
       return memberName.includes(query) || memberFullName.includes(query) || memberId.includes(query);
     });
 
-    // Pagination logic
-    const from = (historyPage - 1) * HISTORY_PER_PAGE;
-    const to = from + HISTORY_PER_PAGE; // exclusive end for slice
+    const totalCount = filtered.length;
 
-    return filtered.slice(from, to);
+    const from = (historyPage - 1) * HISTORY_PER_PAGE;
+    const to = from + HISTORY_PER_PAGE;
+
+    const paginatedData = filtered.slice(from, to);
+
+    return { paginatedHistory: paginatedData, totalFilteredCount: totalCount };
   }, [allDisbursements, historyPage, historySearchQuery]);
 
-  useEffect(() => {
-    setHistoryLoans(filteredAndPaginatedHistory);
-    // Update total count based on filtered array length, not just paginated
-    const totalFilteredCount = allDisbursements.filter(disbursement => {
-      if (!historySearchQuery) return true;
-      const query = historySearchQuery.toLowerCase();
-      const memberName = disbursement.loan?.member?.name?.toLowerCase() || "";
-      const memberFullName = disbursement.loan?.member?.full_name?.toLowerCase() || "";
-      const memberId = disbursement.loan?.member?.member_id?.toLowerCase() || "";
-      return memberName.includes(query) || memberFullName.includes(query) || memberId.includes(query);
-    }).length;
-    setTotalHistoryCount(totalFilteredCount);
-  }, [filteredAndPaginatedHistory, allDisbursements, historySearchQuery]);
+  // Use derived values directly
+  const historyLoans = paginatedHistory;
+  const totalHistoryCount = totalFilteredCount;
 
   const handleDisburseClick = (loan: Loan) => {
     setSelectedLoan(loan);
