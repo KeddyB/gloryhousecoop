@@ -58,6 +58,7 @@ export default function DisbursementPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [pendingLoans, setPendingLoans] = useState<Loan[]>([]);
   const [historyLoans, setHistoryLoans] = useState<Disbursement[]>([]);
+  const [allDisbursements, setAllDisbursements] = useState<Disbursement[]>([]);
   const [historyPage, setHistoryPage] = useState(1);
   const [totalHistoryCount, setTotalHistoryCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
@@ -89,41 +90,7 @@ export default function DisbursementPage() {
   }, [supabase]);
 
   const fetchHistory = useCallback(async () => {
-    const from = (historyPage - 1) * HISTORY_PER_PAGE;
-    const to = from + HISTORY_PER_PAGE - 1;
-
-    let loanIdsToFilter: string[] | null = null;
-    let totalCountFromLoansSearch = 0;
-
-    if (historySearchQuery) {
-      const searchPattern = `%${historySearchQuery}%`;
-      const { data: matchingLoans, count: loansCount, error: loanSearchError } = await supabase
-        .from("loans")
-        .select("id, member(full_name, name, member_id)", { count: "exact" }) // Select relevant fields for filtering
-        .or(
-          `member.full_name.ilike.${searchPattern},member.name.ilike.${searchPattern},member.member_id.ilike.${searchPattern}`
-        );
-
-      if (loanSearchError) {
-        console.error("Error searching loans for history:", loanSearchError);
-        toast.error(`Error searching loans: ${loanSearchError.message}`);
-        setHistoryLoans([]);
-        setTotalHistoryCount(0);
-        return;
-      }
-
-      loanIdsToFilter = matchingLoans?.map((loan) => loan.id) || [];
-      totalCountFromLoansSearch = loansCount || 0;
-
-      if (loanIdsToFilter.length === 0) {
-        // No matching loans, so no disbursed history to show
-        setHistoryLoans([]);
-        setTotalHistoryCount(0);
-        return;
-      }
-    }
-
-    let query = supabase
+    const { data, error } = await supabase
       .from("disbursements")
       .select(
         `
@@ -131,28 +98,17 @@ export default function DisbursementPage() {
         loan:loans(
           *,
           member:members(*)
-        )      `,
-        { count: "exact" }
-      );
-    
-    if (loanIdsToFilter !== null) {
-      query = query.in('loan_id', loanIdsToFilter);
-    }
-
-    const { data, error, count } = await query
-      .range(from, to)
+        )      `
+      )
       .order("created_at", { ascending: false });
 
     if (error) {
       console.error("Error fetching history:", error);
       toast.error(`Error fetching history: ${error.message}`);
     } else {
-      setHistoryLoans(data || []);
-      // If a search query was active, the count should be based on the number of loans that matched
-      // Otherwise, use the count directly from the disbursements table.
-      setTotalHistoryCount(historySearchQuery ? totalCountFromLoansSearch : (count || 0));
+      setAllDisbursements(data || []);
     }
-  }, [supabase, historyPage, historySearchQuery]);
+  }, [supabase]);
 
   useEffect(() => {
     const init = async () => {
@@ -162,6 +118,40 @@ export default function DisbursementPage() {
     };
     init();
   }, [fetchPendingLoans, fetchHistory]);
+
+  const filteredAndPaginatedHistory = useMemo(() => {
+    // Filter logic
+    const filtered = allDisbursements.filter(disbursement => {
+      if (!historySearchQuery) return true; // Show all if no search query
+
+      const query = historySearchQuery.toLowerCase();
+      const memberName = disbursement.loan?.member?.name?.toLowerCase() || "";
+      const memberFullName = disbursement.loan?.member?.full_name?.toLowerCase() || "";
+      const memberId = disbursement.loan?.member?.member_id?.toLowerCase() || "";
+
+      return memberName.includes(query) || memberFullName.includes(query) || memberId.includes(query);
+    });
+
+    // Pagination logic
+    const from = (historyPage - 1) * HISTORY_PER_PAGE;
+    const to = from + HISTORY_PER_PAGE; // exclusive end for slice
+
+    return filtered.slice(from, to);
+  }, [allDisbursements, historyPage, historySearchQuery]);
+
+  useEffect(() => {
+    setHistoryLoans(filteredAndPaginatedHistory);
+    // Update total count based on filtered array length, not just paginated
+    const totalFilteredCount = allDisbursements.filter(disbursement => {
+      if (!historySearchQuery) return true;
+      const query = historySearchQuery.toLowerCase();
+      const memberName = disbursement.loan?.member?.name?.toLowerCase() || "";
+      const memberFullName = disbursement.loan?.member?.full_name?.toLowerCase() || "";
+      const memberId = disbursement.loan?.member?.member_id?.toLowerCase() || "";
+      return memberName.includes(query) || memberFullName.includes(query) || memberId.includes(query);
+    }).length;
+    setTotalHistoryCount(totalFilteredCount);
+  }, [filteredAndPaginatedHistory, allDisbursements, historySearchQuery]);
 
   const handleDisburseClick = (loan: Loan) => {
     setSelectedLoan(loan);
@@ -479,7 +469,6 @@ export default function DisbursementPage() {
                   <Input
                     placeholder="Search member..."
                     className="pl-8 h-9 text-xs border-gray-100 bg-gray-50/50 rounded-lg focus:ring-0 focus:border-gray-200 transition-all"
-                    value={historySearchQuery}
                     onChange={(e) => setHistorySearchQuery(e.target.value)}
                   />
                 </div>
