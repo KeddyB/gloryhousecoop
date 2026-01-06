@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Sidebar } from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +45,7 @@ import { format } from "date-fns";
 import { Loan, Disbursement } from "@/lib/types/loans";
 import { MobileHeader } from "@/components/mobile-header";
 import { useRouter } from "next/router";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const HISTORY_PER_PAGE = 5;
 
@@ -64,6 +65,8 @@ export default function DisbursementPage() {
   const [disbursementAmount, setDisbursementAmount] = useState("");
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isMobile = useIsMobile();
+  const [historySearchQuery, setHistorySearchQuery] = useState("");
 
   const fetchPendingLoans = useCallback(async () => {
     const { data, error } = await supabase
@@ -89,7 +92,7 @@ export default function DisbursementPage() {
     const from = (historyPage - 1) * HISTORY_PER_PAGE;
     const to = from + HISTORY_PER_PAGE - 1;
 
-    const { data, error, count } = await supabase
+    let query = supabase
       .from("disbursements")
       .select(
         `
@@ -99,7 +102,17 @@ export default function DisbursementPage() {
           member:members(*)
         )      `,
         { count: "exact" }
-      )
+      );
+    
+    // Server-side filtering for nested relations is more complex and caused a 400 error.
+    // Filtering will be done client-side for now.
+    // if (historySearchQuery) {
+    //   query = query.or(
+    //     `loan.member.full_name.ilike.%${historySearchQuery}%,loan.member.name.ilike.%${historySearchQuery}%,loan.member.member_id.ilike.%${historySearchQuery}%`
+    //   );
+    // }
+
+    const { data, error, count } = await query
       .range(from, to)
       .order("created_at", { ascending: false });
 
@@ -109,7 +122,7 @@ export default function DisbursementPage() {
       setHistoryLoans(data || []);
       setTotalHistoryCount(count || 0);
     }
-  }, [supabase, historyPage]);
+  }, [supabase, historyPage /* removed historySearchQuery from dependencies */]);
 
   useEffect(() => {
     const init = async () => {
@@ -212,6 +225,22 @@ export default function DisbursementPage() {
     0
   );
 
+  const filteredHistory = useMemo(() => {
+    if (!historySearchQuery) {
+      return historyLoans;
+    }
+    const query = historySearchQuery.toLowerCase();
+    return historyLoans.filter((history) => {
+      const name = (
+        history.loan?.member?.full_name ||
+        history.loan?.member?.name ||
+        ""
+      ).toLowerCase();
+      const id = (history.loan?.member?.member_id || "").toLowerCase();
+      return name.includes(query) || id.includes(query);
+    });
+  }, [historyLoans, historySearchQuery]);
+
   const totalHistoryPages = Math.ceil(totalHistoryCount / HISTORY_PER_PAGE);
 
   return (
@@ -282,17 +311,33 @@ export default function DisbursementPage() {
               <CardTitle className="text-lg font-semibold tracking-tight text-foreground">
                 Loans Ready for Disbursement
               </CardTitle>
-              <div className="relative w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400" />
-                <Input
-                  placeholder="Search member..."
-                  className="pl-8 h-9 text-xs border-gray-100 bg-gray-50/50 rounded-lg focus:ring-0 focus:border-gray-200 transition-all"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
+              {!isMobile && (
+                <div className="relative w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400" />
+                  <Input
+                    placeholder="Search member..."
+                    className="pl-8 h-9 text-xs border-gray-100 bg-gray-50/50 rounded-lg focus:ring-0 focus:border-gray-200 transition-all"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+              )}
             </CardHeader>
             <CardContent className="p-0">
+              {isMobile && (
+                <div className="px-6 pb-4">
+                  <div className="relative w-full">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400" />
+                    <Input
+                      placeholder="Search member..."
+                      className="pl-8 h-9 text-xs border-gray-100 bg-gray-50/50 rounded-lg focus:ring-0 focus:border-gray-200 transition-all"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-[#EEEEEE]">
@@ -410,12 +455,36 @@ export default function DisbursementPage() {
 
           {/* Table: Disbursed History */}
           <Card className="shadow-sm rounded-2xl overflow-hidden border border-gray-100">
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between pb-6 space-y-0">
               <CardTitle className="text-lg font-semibold tracking-tight text-foreground">
                 Disbursed History
               </CardTitle>
+              {!isMobile && ( // Show on desktop
+                <div className="relative w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400" />
+                  <Input
+                    placeholder="Search member..."
+                    className="pl-8 h-9 text-xs border-gray-100 bg-gray-50/50 rounded-lg focus:ring-0 focus:border-gray-200 transition-all"
+                    value={historySearchQuery}
+                    onChange={(e) => setHistorySearchQuery(e.target.value)}
+                  />
+                </div>
+              )}
             </CardHeader>
             <CardContent className="p-0">
+              {isMobile && ( // Show on mobile, inside CardContent
+                <div className="px-6 pb-4">
+                  <div className="relative w-full">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400" />
+                    <Input
+                      placeholder="Search member..."
+                      className="pl-8 h-9 text-xs border-gray-100 bg-gray-50/50 rounded-lg focus:ring-0 focus:border-gray-200 transition-all"
+                      value={historySearchQuery}
+                      onChange={(e) => setHistorySearchQuery(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-[#EEEEEE]">
@@ -457,16 +526,16 @@ export default function DisbursementPage() {
                           </TableCell>
                         </TableRow>
                       ))
-                    : historyLoans.length === 0
+                    : filteredHistory.length === 0
                     ? <TableRow>
                         <TableCell
                           colSpan={5}
                           className="h-32 text-center text-xs text-gray-400 font-medium"
                         >
-                          No disbursement history.
+                          No disbursement history found for this search.
                         </TableCell>
                       </TableRow>
-                    : historyLoans.map((history) => (
+                    : filteredHistory.map((history) => (
                         <TableRow
                           key={history.id}
                           className="border-gray-50 hover:bg-gray-50/30 transition-colors"
