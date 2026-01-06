@@ -74,7 +74,6 @@ export function Sidebar() {
           },
           { label: "Loan list", icon: List, href: "/loans/list" },
           { label: "Repayment", icon: RotateCcw, href: "/loans/repayment" },
-          { label: "Calculator", icon: Calculator, href: "/loans/calculator" },
         ],
       },
       // Reports removed
