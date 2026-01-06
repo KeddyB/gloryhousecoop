@@ -176,7 +176,9 @@ export default function RepaymentPage() {
       setUpcomingInstallments(data || []);
       if (installment) {
         setPaymentAmount(
-          (installment.amount_due - installment.amount_paid).toString()
+          (
+            (installment.amount_due ?? 0) - (installment.amount_paid ?? 0)
+          ).toString()
         );
       }
     }
@@ -649,8 +651,8 @@ export default function RepaymentPage() {
                       >
                         ₦
                         {(upcomingInstallments[0]
-                          ? upcomingInstallments[0].amount_due -
-                            upcomingInstallments[0].amount_paid
+                          ? (upcomingInstallments[0].amount_due ?? 0) -
+                            (upcomingInstallments[0].amount_paid ?? 0)
                           : 0
                         ).toLocaleString()}
                       </h4>
