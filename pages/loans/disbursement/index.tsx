@@ -92,6 +92,37 @@ export default function DisbursementPage() {
     const from = (historyPage - 1) * HISTORY_PER_PAGE;
     const to = from + HISTORY_PER_PAGE - 1;
 
+    let loanIdsToFilter: string[] | null = null;
+    let totalCountFromLoansSearch = 0;
+
+    if (historySearchQuery) {
+      const searchPattern = `%${historySearchQuery}%`;
+      const { data: matchingLoans, count: loansCount, error: loanSearchError } = await supabase
+        .from("loans")
+        .select("id, member(full_name, name, member_id)", { count: "exact" }) // Select relevant fields for filtering
+        .or(
+          `member.full_name.ilike.${searchPattern},member.name.ilike.${searchPattern},member.member_id.ilike.${searchPattern}`
+        );
+
+      if (loanSearchError) {
+        console.error("Error searching loans for history:", loanSearchError);
+        toast.error(`Error searching loans: ${loanSearchError.message}`);
+        setHistoryLoans([]);
+        setTotalHistoryCount(0);
+        return;
+      }
+
+      loanIdsToFilter = matchingLoans?.map((loan) => loan.id) || [];
+      totalCountFromLoansSearch = loansCount || 0;
+
+      if (loanIdsToFilter.length === 0) {
+        // No matching loans, so no disbursed history to show
+        setHistoryLoans([]);
+        setTotalHistoryCount(0);
+        return;
+      }
+    }
+
     let query = supabase
       .from("disbursements")
       .select(
@@ -104,13 +135,9 @@ export default function DisbursementPage() {
         { count: "exact" }
       );
     
-    // Server-side filtering for nested relations is more complex and caused a 400 error.
-    // Filtering will be done client-side for now.
-    // if (historySearchQuery) {
-    //   query = query.or(
-    //     `loan.member.full_name.ilike.%${historySearchQuery}%,loan.member.name.ilike.%${historySearchQuery}%,loan.member.member_id.ilike.%${historySearchQuery}%`
-    //   );
-    // }
+    if (loanIdsToFilter !== null) {
+      query = query.in('loan_id', loanIdsToFilter);
+    }
 
     const { data, error, count } = await query
       .range(from, to)
@@ -118,11 +145,14 @@ export default function DisbursementPage() {
 
     if (error) {
       console.error("Error fetching history:", error);
+      toast.error(`Error fetching history: ${error.message}`);
     } else {
       setHistoryLoans(data || []);
-      setTotalHistoryCount(count || 0);
+      // If a search query was active, the count should be based on the number of loans that matched
+      // Otherwise, use the count directly from the disbursements table.
+      setTotalHistoryCount(historySearchQuery ? totalCountFromLoansSearch : (count || 0));
     }
-  }, [supabase, historyPage /* removed historySearchQuery from dependencies */]);
+  }, [supabase, historyPage, historySearchQuery]);
 
   useEffect(() => {
     const init = async () => {
@@ -224,22 +254,6 @@ export default function DisbursementPage() {
     (sum, loan) => sum + loan.loan_amount,
     0
   );
-
-  const filteredHistory = useMemo(() => {
-    if (!historySearchQuery) {
-      return historyLoans;
-    }
-    const query = historySearchQuery.toLowerCase();
-    return historyLoans.filter((history) => {
-      const name = (
-        history.loan?.member?.full_name ||
-        history.loan?.member?.name ||
-        ""
-      ).toLowerCase();
-      const id = (history.loan?.member?.member_id || "").toLowerCase();
-      return name.includes(query) || id.includes(query);
-    });
-  }, [historyLoans, historySearchQuery]);
 
   const totalHistoryPages = Math.ceil(totalHistoryCount / HISTORY_PER_PAGE);
 
@@ -526,16 +540,16 @@ export default function DisbursementPage() {
                           </TableCell>
                         </TableRow>
                       ))
-                    : filteredHistory.length === 0
+                    : historyLoans.length === 0
                     ? <TableRow>
                         <TableCell
                           colSpan={5}
                           className="h-32 text-center text-xs text-gray-400 font-medium"
                         >
-                          No disbursement history found for this search.
+                          {historySearchQuery ? "No disbursement history found for this search." : "No disbursement history."}
                         </TableCell>
                       </TableRow>
-                    : filteredHistory.map((history) => (
+                    : historyLoans.map((history) => (
                         <TableRow
                           key={history.id}
                           className="border-gray-50 hover:bg-gray-50/30 transition-colors"
