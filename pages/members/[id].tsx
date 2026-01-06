@@ -69,8 +69,14 @@ import {
 import { createClient } from "@/utils/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EditProfileDialog } from "@/components/edit-profile-dialog";
-import { EditLoanTenureDialog } from "@/components/edit-loan-tenure-dialog";
+import { ExtendLoanModal } from "@/components/extend-loan-modal";
 import { Member } from "@/lib/types/members";
+import {
+  Loan,
+  Repayment,
+  Disbursement,
+  InterestPayment,
+} from "@/lib/types/loans";
 import {
   format,
   startOfMonth,
@@ -88,41 +94,7 @@ interface Note {
   source: string;
 }
 
-interface Repayment {
-  amount_paid: number;
-}
-
-interface Disbursement {
-  created_at: string;
-}
-
-interface InterestPayment {
-  id: string;
-  payment_for_month: string;
-  amount_paid: number;
-  payment_date?: string | null;
-  created_at: string;
-  notes?: string | null;
-  created_by_name?: string | null;
-  payment_method?: string | null;
-}
-
-interface Loan {
-  id: string;
-  loan_amount?: number;
-  amount?: number;
-  tenure: number;
-  interest_rate: number;
-  state: string;
-  created_at: string;
-  repayments: Repayment[];
-  disbursements: Disbursement[];
-  interest_payments: InterestPayment[];
-  third_party_name?: string;
-  third_party_number?: string;
-  collateral_docs_url?: string;
-  loan_agreement_url?: string;
-}
+// Local activity and display types
 
 interface ActivityItem {
   id: string;
@@ -306,7 +278,7 @@ export default function MemberProfile() {
       const { data: loansData, error: loansError } = await supabase
         .from("loans")
         .select(
-          "*, disbursements(created_at), interest_payments(payment_for_month, amount_paid), repayments(amount_paid)"
+          "*, disbursements(created_at), interest_payments(payment_for_month, amount_paid), repayments(amount_paid, amount_due, status)"
         )
         .eq("member_id", memberId)
         .or("state.eq.active,state.eq.disbursed");
@@ -457,7 +429,7 @@ export default function MemberProfile() {
       .select(
         `
           *,
-          repayments(amount_paid),
+          repayments(amount_paid, amount_due, status),
           disbursements(created_at)
       `
       )
@@ -1120,7 +1092,7 @@ export default function MemberProfile() {
                   <CardContent className="space-y-6">
                     {activeLoans.length > 0 ? (
                       activeLoans.map((loan, i) => {
-                        const loanAmount = loan.loan_amount ?? loan.amount ?? 0;
+                        const loanAmount = loan.loan_amount ?? 0;
                         const loanRepaid = loan.repayments
                           ? loan.repayments.reduce(
                               (acc: number, curr: Repayment) =>
@@ -1487,16 +1459,11 @@ export default function MemberProfile() {
                     <TableBody>
                       {loanHistory.length > 0 ? (
                         loanHistory.map((loan) => {
-                          const amount = loan.loan_amount ?? loan.amount ?? 0;
+                          const amount = loan.loan_amount ?? 0;
                           const disbursedDate =
                             loan.disbursements?.[0]?.created_at ||
                             loan.created_at;
-                          const paid =
-                            loan.repayments?.reduce(
-                              (sum: number, r: Repayment) =>
-                                sum + (r.amount_paid || 0),
-                              0
-                            ) || 0;
+                          const paid = loan.amount_paid;
                           const remaining = Math.max(0, amount - paid);
 
                           return (
@@ -1845,7 +1812,7 @@ export default function MemberProfile() {
           onOpenChange={setEditDialogOpen}
           onSuccess={fetchMember}
         />
-        <EditLoanTenureDialog
+        <ExtendLoanModal
           loan={loanToEdit}
           open={editLoanDialogOpen}
           onOpenChange={setEditLoanDialogOpen}
