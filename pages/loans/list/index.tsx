@@ -224,18 +224,18 @@ export default function LoanListPage() {
                 <CardTitle className="text-lg font-semibold text-[#1A1A1A]">
                   Loan Records
                 </CardTitle>
-                <div className="flex items-center gap-4">
-                  <div className="relative flex-1 group">
+                <div className="flex flex-col md:flex-row items-center gap-4">
+                  <div className="relative flex-1 w-full group">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#ADB5BD] group-focus-within:text-black transition-colors" />
                     <Input
                       placeholder="Search by applicant..."
-                      className="pl-11 bg-[#F8F9FA] border-none h-12 text-sm rounded-xl focus-visible:ring-1 focus-visible:ring-[#EEEEEE]"
+                      className="pl-11 bg-[#F8F9FA] border-none h-12 text-sm rounded-xl focus-visible:ring-1 focus-visible:ring-[#EEEEEE] w-full"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[180px] bg-[#F8F9FA] border-none h-12 text-sm rounded-xl px-5">
+                    <SelectTrigger className="w-full md:w-[180px] bg-[#F8F9FA] border-none h-12 text-sm rounded-xl px-5">
                       <SelectValue placeholder="All Status" />
                     </SelectTrigger>
                     <SelectContent className="rounded-xl border-[#EEEEEE] shadow-xl">
@@ -247,7 +247,7 @@ export default function LoanListPage() {
                     </SelectContent>
                   </Select>
                   <Select value={monthFilter} onValueChange={setMonthFilter}>
-                    <SelectTrigger className="w-[180px] bg-[#F8F9FA] border-none h-12 text-sm rounded-xl px-5">
+                    <SelectTrigger className="w-full md:w-[180px] bg-[#F8F9FA] border-none h-12 text-sm rounded-xl px-5">
                       <SelectValue placeholder="All Month" />
                     </SelectTrigger>
                     <SelectContent className="rounded-xl border-[#EEEEEE] shadow-xl">

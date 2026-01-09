@@ -229,16 +229,18 @@ export default function RepaymentPage() {
 
           {/* Active Loans - Repayment Status */}
           <Card className="shadow-sm rounded-2xl overflow-hidden border border-gray-100">
-            <CardHeader className="flex flex-row items-center justify-between pb-6 space-y-0">
+            <CardHeader className="pb-6">
               <CardTitle className="text-lg font-semibold tracking-tight text-foreground">
                 Active Loans - Repayment Status
               </CardTitle>
-              <div className="flex items-center gap-4">
-                <div className="relative w-64">
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="flex flex-col gap-4 px-6 pb-6">
+                <div className="relative w-full">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400" />
                   <Input
                     placeholder="Search by applicant..."
-                    className="pl-8 h-9 text-xs border-gray-100 bg-gray-50/50 rounded-lg focus:ring-0 focus:border-gray-200 transition-all"
+                    className="pl-8 h-9 text-xs border-gray-100 bg-gray-50/50 rounded-lg focus:ring-0 focus:border-gray-200 transition-all w-full"
                     value={searchQuery}
                     onChange={(e) => {
                       setSearchQuery(e.target.value);
@@ -253,7 +255,7 @@ export default function RepaymentPage() {
                     setCurrentPage(1);
                   }}
                 >
-                  <SelectTrigger className="w-30 h-9 text-xs border-gray-100 bg-gray-50/50 rounded-lg">
+                  <SelectTrigger className="w-full h-9 text-xs border-gray-100 bg-gray-50/50 rounded-lg">
                     <SelectValue placeholder="All Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -265,8 +267,6 @@ export default function RepaymentPage() {
                   </SelectContent>
                 </Select>
               </div>
-            </CardHeader>
-            <CardContent className="p-0">
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-[#EEEEEE]">
