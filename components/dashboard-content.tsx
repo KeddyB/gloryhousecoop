@@ -56,13 +56,18 @@ export function DashboardContent() {
         setActiveLoansCount(loansCount.toString())
       }
 
-      // Get Total Interest Paid
+      // Get Total Interest Paid this month
+      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
       const { data: interestData } = await supabase
         .from('interest_payments')
         .select('amount_paid')
-      
-      const interestSum = interestData?.reduce((sum, item) => sum + (Number(item.amount_paid) || 0), 0) || 0
-      setTotalInterest(`₦${interestSum.toLocaleString()}`)
+        .gte('payment_for_month', firstDayOfMonth.toISOString().slice(0, 10))
+        .lte('payment_for_month', lastDayOfMonth.toISOString().slice(0, 10));
+
+      const interestSum = interestData?.reduce((sum, item) => sum + (Number(item.amount_paid) || 0), 0) || 0;
+      setTotalInterest(`₦${interestSum.toLocaleString()}`);
 
       // Get Total Repayments
       const { data: repaymentData } = await supabase
