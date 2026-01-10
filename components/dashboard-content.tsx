@@ -35,12 +35,12 @@ export function DashboardContent() {
       }
 
       // Get new members this month
-      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+      const firstDayOfMonthForNewMembers = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
       
       const { count: newCount } = await supabase
         .from('members')
         .select('*', { count: 'exact', head: true })
-        .gte('created_at', firstDayOfMonth)
+        .gte('created_at', firstDayOfMonthForNewMembers)
 
       if (newCount !== null) {
         setNewMembersText(`+${newCount} new this month`)
@@ -57,14 +57,14 @@ export function DashboardContent() {
       }
 
       // Get Total Interest Paid this month
-      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const firstDayOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDayOfThisMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
       const { data: interestData } = await supabase
         .from('interest_payments')
         .select('amount_paid')
-        .gte('payment_for_month', firstDayOfMonth.toISOString().slice(0, 10))
-        .lte('payment_for_month', lastDayOfMonth.toISOString().slice(0, 10));
+        .gte('payment_for_month', firstDayOfThisMonth.toISOString().slice(0, 10))
+        .lte('payment_for_month', lastDayOfThisMonth.toISOString().slice(0, 10));
 
       const interestSum = interestData?.reduce((sum, item) => sum + (Number(item.amount_paid) || 0), 0) || 0;
       setTotalInterest(`₦${interestSum.toLocaleString()}`);
