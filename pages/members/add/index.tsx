@@ -132,26 +132,41 @@ function AddMemberForm() {
         data: { user },
       } = await supabase.auth.getUser();
 
-      const { data: existingMembers, error: checkError } = await supabase
-        .from("members")
-        .select("phone, email")
-        .or(`phone.eq.${formData.phone},email.eq.${formData.email}`);
-
-      if (checkError) {
-        setFormError("An error occurred while validating details.");
-        setLoading(false);
-        return;
+      // Build the validation query dynamically
+      const orConditions = [];
+      if (formData.phone) {
+        orConditions.push(`phone.eq.${formData.phone}`);
+      }
+      if (formData.email) {
+        orConditions.push(`email.eq.${formData.email}`);
       }
 
-      if (existingMembers && existingMembers.length > 0) {
-        const duplicate = existingMembers[0];
-        if (duplicate.phone === formData.phone) {
-          setFormError("A member with this phone number already exists.");
-        } else {
-          setFormError("A member with this email address already exists.");
+      if (orConditions.length > 0) {
+        const { data: existingMembers, error: checkError } = await supabase
+          .from("members")
+          .select("phone, email")
+          .or(orConditions.join(","));
+
+        if (checkError) {
+          setFormError("An error occurred while validating details.");
+          setLoading(false);
+          return;
         }
-        setLoading(false);
-        return;
+
+        if (existingMembers && existingMembers.length > 0) {
+          for (const member of existingMembers) {
+            if (formData.phone && member.phone === formData.phone) {
+              setFormError("A member with this phone number already exists.");
+              setLoading(false);
+              return;
+            }
+            if (formData.email && member.email === formData.email) {
+              setFormError("A member with this email address already exists.");
+              setLoading(false);
+              return;
+            }
+          }
+        }
       }
 
       const { error } = await supabase
