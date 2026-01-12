@@ -15,7 +15,7 @@ export function DashboardContent() {
   const [totalMembers, setTotalMembers] = useState("...")
   const [newMembersText, setNewMembersText] = useState("...")
   const [activeLoansCount, setActiveLoansCount] = useState("...")
-  const [totalInterest, setTotalInterest] = useState("...")
+  const [totalInterestForMonth, setTotalInterestForMonth] = useState("...")
   const [totalProfit, setTotalProfit] = useState("...")
   const [loading, setLoading] = useState(true)
 
@@ -67,7 +67,7 @@ export function DashboardContent() {
         .lte('payment_for_month', lastDayOfThisMonth.toISOString().slice(0, 10));
 
       const interestSum = interestData?.reduce((sum, item) => sum + (Number(item.amount_paid) || 0), 0) || 0;
-      setTotalInterest(`₦${interestSum.toLocaleString()}`);
+      setTotalInterestForMonth(`₦${interestSum.toLocaleString()}`);
 
       // Get Total Repayments
       const { data: repaymentData } = await supabase
@@ -175,7 +175,7 @@ export function DashboardContent() {
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
           <KpiCard title="Total Members" value={totalMembers} change={newMembersText} icon="users" loading={loading} />
-          <KpiCard title="Interest Monthly Fees" value={totalInterest} change="Total collected" icon="wallet" loading={loading} />
+          <KpiCard title="Interest Monthly Fees" value={totalInterestForMonth} change="Total collected" icon="wallet" loading={loading} />
           <KpiCard title="Active Loans" value={activeLoansCount} change="Currently active loans" icon="briefcase" loading={loading} />
           <KpiCard title="Total Profit Expected" value={totalProfit} change="Net cash flow" icon="trending" loading={loading} />
         </div>
