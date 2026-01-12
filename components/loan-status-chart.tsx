@@ -6,6 +6,7 @@ import { PieChart, Pie, Cell, Legend, ResponsiveContainer, Tooltip } from "recha
 import { createClient } from "@/utils/supabase/client"
 import { isBefore, startOfMonth, addMonths, isSameMonth } from "date-fns"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Empty, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
 
 interface InterestPayment {
   id: string;
@@ -214,6 +215,8 @@ export function LoanStatusChart() {
     fetchData()
   }, [])
 
+  const totalValue = data.reduce((acc, entry) => acc + entry.value, 0)
+
   if (isLoading) {
     return (
       <Card className="p-6">
@@ -226,25 +229,36 @@ export function LoanStatusChart() {
   return (
     <Card className="p-6">
       <h2 className="text-lg font-semibold text-foreground mb-6">Loan Status Distribution</h2>
-      <ResponsiveContainer width="100%" height={300}>
-        <PieChart>
-          <Pie 
-            data={data} 
-            cx="50%" 
-            cy="50%" 
-            innerRadius={60} 
-            outerRadius={100} 
-            paddingAngle={2} 
-            dataKey="value"
-          >
-            {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.color} />
-            ))}
-          </Pie>
-          <Tooltip formatter={(value: number) => [value, 'Count']} />
-          <Legend />
-        </PieChart>
-      </ResponsiveContainer>
+      {totalValue > 0 ? (
+        <ResponsiveContainer width="100%" height={300}>
+          <PieChart>
+            <Pie
+              data={data}
+              cx="50%"
+              cy="50%"
+              innerRadius={60}
+              outerRadius={100}
+              paddingAngle={2}
+              dataKey="value"
+            >
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.color} />
+              ))}
+            </Pie>
+            <Tooltip formatter={(value: number) => [value, "Count"]} />
+            <Legend />
+          </PieChart>
+        </ResponsiveContainer>
+      ) : (
+        <div className="flex h-[300px] items-center justify-center">
+          <Empty>
+            <EmptyTitle>No Data</EmptyTitle>
+            <EmptyDescription>
+              There is no loan status data to display at the moment.
+            </EmptyDescription>
+          </Empty>
+        </div>
+      )}
     </Card>
   )
 }

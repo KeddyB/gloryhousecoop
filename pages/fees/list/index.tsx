@@ -258,7 +258,7 @@ export default function FeeListPage() {
       if (!loan.member) return;
 
       const disbursedDate = loan.disbursements?.[0]?.created_at || loan.created_at;
-      const startDue = addMonths(new Date(disbursedDate), 1);
+      const startDue = new Date(disbursedDate);
       const loanEndDate = addMonths(startDue, loan.tenure);
       const monthlyInterest = (loan.loan_amount * loan.interest_rate) / 100;
       

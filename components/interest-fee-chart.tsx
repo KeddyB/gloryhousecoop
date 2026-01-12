@@ -6,27 +6,18 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { createClient } from "@/utils/supabase/client"
 import { 
   format, 
-  startOfHour, 
-  startOfDay, 
-  startOfWeek, 
   startOfMonth, 
   startOfYear, 
-  subHours, 
-  subDays, 
-  subWeeks, 
   subMonths, 
   subYears, 
   isAfter,
-  eachHourOfInterval,
-  eachDayOfInterval,
-  eachWeekOfInterval,
   eachMonthOfInterval,
   eachYearOfInterval,
 } from "date-fns"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 
-type Interval = "hourly" | "daily" | "weekly" | "monthly" | "yearly"
+type Interval = "monthly" | "yearly"
 
 interface Transaction {
   id?: string
@@ -52,6 +43,7 @@ interface Transaction {
 
   payment_date?: string
   due_date?: string
+  payment_for_month?: string
 }
 
 
@@ -65,8 +57,8 @@ export function InterestFeeChart() {
       const supabase = createClient()
       const { data: paymentsData, error } = await supabase
         .from('interest_payments')
-        .select('amount_paid, payment_date')
-        .order('payment_date', { ascending: true })
+        .select('amount_paid, payment_for_month')
+        .order('payment_for_month', { ascending: true })
 
       if (error) {
         console.error('Error fetching interest payments:', error)
@@ -84,28 +76,10 @@ export function InterestFeeChart() {
     let start = new Date()
     let formatKey = ""
     let displayFormat = ""
-    let intervalGenerator: (options: { start: Date; end: Date }) => Date[] = eachDayOfInterval;
+    let intervalGenerator: (options: { start: Date; end: Date }) => Date[] = eachMonthOfInterval;
 
     // 1. Configure interval settings
     switch (interval) {
-      case "hourly":
-        start = subHours(now, 24)
-        intervalGenerator = eachHourOfInterval
-        formatKey = "yyyy-MM-dd HH:mm"
-        displayFormat = "HH:mm"
-        break
-      case "daily":
-        start = subDays(now, 30)
-        intervalGenerator = eachDayOfInterval
-        formatKey = "yyyy-MM-dd"
-        displayFormat = "MMM dd"
-        break
-      case "weekly":
-        start = subWeeks(now, 12)
-        intervalGenerator = eachWeekOfInterval
-        formatKey = "yyyy-MM-dd"
-        displayFormat = "MMM dd"
-        break
       case "monthly":
         start = subMonths(now, 11) // Last 12 months
         intervalGenerator = eachMonthOfInterval
@@ -131,23 +105,14 @@ export function InterestFeeChart() {
 
     // 3. Group actual payments
     const grouped = payments.reduce((acc, curr) => {
-      if (!curr.payment_date) return acc
-      const date = new Date(curr.payment_date)
+      if (!curr.payment_for_month) return acc
+      const date = new Date(curr.payment_for_month)
       
       // Filter out if before start
       if (!isAfter(date, start)) return acc;
 
       let key = ""
       switch (interval) {
-        case "hourly":
-          key = format(startOfHour(date), formatKey)
-          break
-        case "daily":
-          key = format(startOfDay(date), formatKey)
-          break
-        case "weekly":
-          key = format(startOfWeek(date), formatKey)
-          break
         case "monthly":
           key = format(startOfMonth(date), formatKey)
           break
@@ -164,15 +129,6 @@ export function InterestFeeChart() {
     return timeBuckets.map(date => {
         let key = ""
         switch (interval) {
-            case "hourly":
-              key = format(startOfHour(date), formatKey)
-              break
-            case "daily":
-              key = format(startOfDay(date), formatKey)
-              break
-            case "weekly":
-              key = format(startOfWeek(date), formatKey)
-              break
             case "monthly":
               key = format(startOfMonth(date), formatKey)
               break
@@ -211,9 +167,6 @@ export function InterestFeeChart() {
                 <SelectValue placeholder="Select interval" />
             </SelectTrigger>
             <SelectContent>
-                <SelectItem value="hourly">Hourly (24h)</SelectItem>
-                <SelectItem value="daily">Daily (30d)</SelectItem>
-                <SelectItem value="weekly">Weekly (12w)</SelectItem>
                 <SelectItem value="monthly">Monthly (12m)</SelectItem>
                 <SelectItem value="yearly">Yearly (5y)</SelectItem>
             </SelectContent>

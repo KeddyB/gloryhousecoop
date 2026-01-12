@@ -38,6 +38,7 @@ import {
   isBefore,
   startOfDay,
   isSameMonth,
+  addDays,
 } from "date-fns";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
@@ -119,38 +120,45 @@ export default function InterestFeeEntryPage() {
       const now = new Date();
       const unpaidMonths: Date[] = [];
 
-      const dueDay = startDue.getDate(); // Get the day of the month from the loan start date
+      // Per request, add a 30-day grace period before any month can be marked as unpaid.
+      const gracePeriodEndDate = addDays(startDue, 30);
+      if (isBefore(now, gracePeriodEndDate)) {
+        return [];
+      }
+
+      const dueDay = startDue.getDate();
 
       let iterDate = startOfMonth(startDue);
       const currentMonthStart = startOfMonth(now);
 
-      // Don't show unpaid months for future months
-      if (isBefore(currentMonthStart, iterDate)) {
-        return [];
-      }
-
-      // Calculate payments up to the current month or loan end date, whichever comes first
-      // A payment for the current month is only considered "unpaid" after its due date has passed.
-      // So, we iterate up to and including the current month, then apply the due date logic.
+      // We calculate payments up to the current month.
       let calculationLimit = addMonths(currentMonthStart, 1);
 
+      // But not past the loan's end date.
       if (isBefore(endDate, calculationLimit)) {
         calculationLimit = endDate;
       }
-      
+
       while (isBefore(iterDate, calculationLimit)) {
         const isPaid = loan.interest_payments.some((p) =>
           isSameMonth(new Date(p.payment_for_month), iterDate)
         );
 
-        // Construct the specific due date for this iterDate's month
-        // setDate handles months with fewer days by clamping to the last day of the month
-        const monthlyDueDate = new Date(iterDate.getFullYear(), iterDate.getMonth(), dueDay);
+        // The due date for the interest of month `iterDate` is on `dueDay` of the *next* month.
+        // We construct the date this way to correctly handle days like the 31st for short months.
+        const monthWithDueDay = new Date(
+          iterDate.getFullYear(),
+          iterDate.getMonth(),
+          dueDay
+        );
+        const actualDueDate = addMonths(monthWithDueDay, 1);
 
-        // If the payment is not paid AND the monthly due date has passed
-        if (!isPaid && (isBefore(monthlyDueDate, now) || isSameMonth(monthlyDueDate, now) && now.getDate() >= monthlyDueDate.getDate())) {
+        // A month is unpaid if it's not paid AND its due date is today or has passed.
+        // !isBefore(now, actualDueDate) is equivalent to now >= actualDueDate
+        if (!isPaid && !isBefore(now, actualDueDate)) {
           unpaidMonths.push(new Date(iterDate));
         }
+
         iterDate = addMonths(iterDate, 1);
       }
 
@@ -186,33 +194,49 @@ export default function InterestFeeEntryPage() {
   const calculateStats = useCallback(
     (loanData: LoanWithMember[]) => {
       let todaySum = 0;
-      let monthSum = 0;
-      let pendingSum = 0;
-      const today = startOfDay(new Date());
+      let monthSum = 0; // Collections FOR this month
+      let expectedThisMonth = 0;
+      const today = new Date();
+      const startOfToday = startOfDay(today);
+      const startOfThisMonth = startOfMonth(today);
 
       loanData.forEach((loan) => {
         const monthlyInterest = (loan.loan_amount * loan.interest_rate) / 100;
-        const unpaidMonths = getUnpaidMonths(loan);
-        pendingSum += unpaidMonths.length * monthlyInterest;
+        const loanStart = getLoanStartDate(loan);
+        const loanEnd = getLoanEndDate(loan);
 
+        // Calculate collections from payments
         loan.interest_payments.forEach((payment) => {
           const payDate = new Date(payment.payment_date);
-
-          if (startOfDay(payDate).getTime() === today.getTime()) {
+          // Today's collection based on payment date
+          if (startOfDay(payDate).getTime() === startOfToday.getTime()) {
             todaySum += payment.amount_paid;
           }
-
-          if (isSameMonth(payDate, today)) {
+          // This month's collection based on the month the payment is FOR
+          if (isSameMonth(new Date(payment.payment_for_month), today)) {
             monthSum += payment.amount_paid;
           }
         });
+
+        // Calculate total expected FOR this month
+        // A loan is active and expected to pay for this month if the month is
+        // on or after its start month and before its end date.
+        if (
+          !isBefore(startOfThisMonth, startOfMonth(loanStart)) &&
+          isBefore(startOfThisMonth, loanEnd)
+        ) {
+          expectedThisMonth += monthlyInterest;
+        }
       });
+
+      // Pending is what's expected for this month minus what's been collected for this month.
+      const pendingSum = Math.max(0, expectedThisMonth - monthSum);
 
       setTodaysCollection(todaySum);
       setThisMonthCollection(monthSum);
       setTotalPending(pendingSum);
     },
-    [getUnpaidMonths]
+    [getLoanStartDate, getLoanEndDate]
   );
 
   const fetchData = useCallback(async () => {
@@ -463,6 +487,23 @@ export default function InterestFeeEntryPage() {
                       const unpaidMonths = getUnpaidMonths(loan);
                       const isSelected = selectedLoan?.id === loan.id;
 
+                      const today = new Date();
+                      const loanStart = getLoanStartDate(loan);
+                      const loanEnd = getLoanEndDate(loan);
+
+                      // Check if a payment has been made for the current month.
+                      const isPaidForCurrentMonth = loan.interest_payments.some(
+                        (p) =>
+                          isSameMonth(new Date(p.payment_for_month), today)
+                      );
+
+                      // Check if the loan is active in the current month.
+                      const isActiveThisMonth =
+                        !isBefore(
+                          startOfMonth(today),
+                          startOfMonth(loanStart)
+                        ) && isBefore(startOfMonth(today), loanEnd);
+
                       return (
                         <div
                           key={loan.id}
@@ -502,6 +543,10 @@ export default function InterestFeeEntryPage() {
                             {unpaidMonths.length > 0 ? (
                               <p className="text-[11px] font-medium text-red-500">
                                 {unpaidMonths.length} unpaid month(s)
+                              </p>
+                            ) : isActiveThisMonth && !isPaidForCurrentMonth ? (
+                              <p className="text-[11px] font-medium text-orange-500">
+                                Pending
                               </p>
                             ) : (
                               <p className="text-[11px] font-medium text-green-500">
