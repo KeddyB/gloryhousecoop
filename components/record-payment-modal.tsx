@@ -297,6 +297,7 @@ export function RecordPaymentModal({
                           <SelectItem value="Mobile Transfer">
                             Mobile Transfer
                           </SelectItem>
+                          <SelectItem value="Cheque">Cheque</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
