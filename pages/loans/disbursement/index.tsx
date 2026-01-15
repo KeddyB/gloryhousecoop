@@ -46,6 +46,7 @@ import { Loan, Disbursement } from "@/lib/types/loans";
 import { MobileHeader } from "@/components/mobile-header";
 import { useRouter } from "next/router";
 import { useIsMobile } from "@/hooks/use-mobile";
+import Head from "next/head";
 
 const HISTORY_PER_PAGE = 5;
 
@@ -241,6 +242,9 @@ export default function DisbursementPage() {
 
   return (
     <div className="flex h-screen bg-background">
+      <Head>
+        <title>Loan Disbursement - GloryHouseCoop</title>
+      </Head>
       <Sidebar />
       <MobileHeader title="Loan Disbursement" onBack={() => router.back()} />
       <div className="flex-1 overflow-auto p-8">

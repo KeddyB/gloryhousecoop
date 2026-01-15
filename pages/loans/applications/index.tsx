@@ -39,6 +39,7 @@ import { createClient } from "@/utils/supabase/client";
 import { toast } from "sonner";
 import { AmountInput } from "@/components/ui/amount-input";
 import { Member } from "@/lib/types/members";
+import Head from "next/head";
 
 const steps = [
   { id: 1, name: "Applicant Information", icon: User },
@@ -351,6 +352,9 @@ function LoanApplicationForm() {
 
   return (
     <div className="flex h-screen bg-background">
+      <Head>
+        <title>Loan Application - GloryHouseCoop</title>
+      </Head>
       <Sidebar />
       <MobileHeader title="Loan Application" onBack={() => router.back()} />
       <div className="flex-1 overflow-auto bg-background">

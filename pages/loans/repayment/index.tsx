@@ -40,6 +40,7 @@ import { toast } from "sonner";
 import { LoanRepaymentSummary } from "@/lib/types/loans";
 import { MobileHeader } from "@/components/mobile-header";
 import { useRouter } from "next/router";
+import Head from "next/head";
 
 export default function RepaymentPage() {
   const router = useRouter();
@@ -144,6 +145,9 @@ export default function RepaymentPage() {
 
   return (
     <div className="flex h-screen bg-background">
+      <Head>
+        <title>Loans Repayment List - GloryHouseCoop</title>
+      </Head>
       <Sidebar />
       <MobileHeader title="Repayment Management" onBack={() => router.back()} />
       <div className="flex-1 overflow-auto p-8">

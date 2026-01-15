@@ -1,4 +1,6 @@
 import { useRouter } from "next/router";
+import Head from "next/head";
+
 import { useState, useEffect } from "react";
 import { Sidebar } from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
@@ -749,6 +751,9 @@ export default function MemberProfile() {
   if (loading) {
     return (
       <div className="flex h-screen bg-background">
+        <Head>
+          <title>Loading Member...</title>
+        </Head>
         <Sidebar />
         <MobileHeader title="Member Profile" onBack={() => router.back()} />
         <div className="flex-1 overflow-auto">
@@ -821,6 +826,9 @@ export default function MemberProfile() {
   if (!member) {
     return (
       <div className="flex h-screen bg-background">
+        <Head>
+          <title>Member Not Found</title>
+        </Head>
         <Sidebar />
         <MobileHeader title="Member Not Found" onBack={() => router.back()} />
         <div className="flex-1 flex items-center justify-center bg-gray-50/50">
@@ -837,6 +845,11 @@ export default function MemberProfile() {
 
   return (
     <div className="flex h-screen bg-background">
+      <Head>
+        <title>
+          {member ? `${member.name}` : "Member Profile"} - Glory House Cooperative
+        </title>
+      </Head>
       <Sidebar />
       <MobileHeader title="Member Profile" onBack={() => router.back()} />
       <div className="flex-1 overflow-auto">

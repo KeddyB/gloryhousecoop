@@ -75,6 +75,8 @@ interface LoanWithMember {
   disbursements?: { created_at: string }[];
 }
 
+import Head from "next/head";
+
 export default function InterestFeeEntryPage() {
   const router = useRouter();
   const [loans, setLoans] = useState<LoanWithMember[]>([]);
@@ -381,6 +383,9 @@ export default function InterestFeeEntryPage() {
 
   return (
     <div className="flex h-screen bg-background">
+      <Head>
+        <title>Interest Fees Entry - GloryHouseCoop</title>
+      </Head>
       <Sidebar />
       <MobileHeader title="Interest Fee Entry" onBack={() => router.back()} />
       <div className="flex-1 overflow-auto p-8">
