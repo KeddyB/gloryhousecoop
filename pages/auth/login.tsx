@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Head from 'next/head';
+import Image from 'next/image';
 import { useRouter } from 'next/router';
 import { createClient } from '@/utils/supabase/client';
 
@@ -47,9 +48,13 @@ export default function LoginPage() {
           
           {/* Header Section */}
           <div className="text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-lg text-primary-foreground font-bold text-2xl transform transition hover:scale-105 duration-300">
-              G
-            </div>
+            <Image
+              src="/favicon.ico"
+              alt="GloryHoleCoop Logo"
+              width={64}
+              height={64}
+              className="mx-auto rounded-2xl shadow-lg transform transition hover:scale-105 duration-300"
+            />
             <h2 className="mt-6 text-3xl font-extrabold tracking-tight text-foreground">
               Welcome back
             </h2>
