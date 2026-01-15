@@ -56,6 +56,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { MobileHeader } from "@/components/mobile-header";
+import Head from "next/head";
 
 export default function MembersListPage() {
   const router = useRouter();
@@ -199,6 +200,9 @@ export default function MembersListPage() {
 
   return (
     <div className="flex h-screen bg-background">
+      <Head>
+        <title>Members List - GloryHouseCoop</title>
+      </Head>
       <Sidebar />
       <MobileHeader title="Member Management" onBack={() => router.back()} />
       <div className="flex-1 overflow-auto">
