@@ -41,7 +41,7 @@ export default function LoginPage() {
   return (
     <>
       <Head>
-        <title>Login - GloryHoleCoop</title>
+        <title>Login - GloryHouseCoop</title>
       </Head>
       <div className="flex min-h-screen items-center justify-center bg-background py-12 sm:px-6 lg:px-8">
         <div className="w-full max-w-md space-y-8">
@@ -50,7 +50,7 @@ export default function LoginPage() {
           <div className="text-center">
             <Image
               src="/favicon.ico"
-              alt="GloryHoleCoop Logo"
+              alt="GloryHouseCoop Logo"
               width={64}
               height={64}
               className="mx-auto rounded-2xl shadow-lg transform transition hover:scale-105 duration-300"
