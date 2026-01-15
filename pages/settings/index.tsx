@@ -34,6 +34,7 @@ import { ActivityLog } from "@/components/activity-log";
 import { AnnualDataAnalytics } from "@/components/annual-data-analytics";
 import { MobileHeader } from "@/components/mobile-header";
 import { useRouter } from "next/router";
+import Head from "next/head";
 
 interface User {
   id: string;
@@ -234,6 +235,9 @@ export default function SettingsPage() {
 
   return (
     <div className="flex h-screen bg-background">
+      <Head>
+        <title>Settings - GloryHouseCoop</title>
+      </Head>
       <Sidebar />
       <MobileHeader title="Settings" onBack={() => router.back()} />
       <div className="flex-1 overflow-auto">

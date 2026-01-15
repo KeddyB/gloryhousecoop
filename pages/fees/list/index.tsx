@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MobileHeader } from "@/components/mobile-header";
 import { useRouter } from "next/navigation";
+import Head from "next/head";
 
 interface FeeRecord {
   id: string;
@@ -349,6 +350,9 @@ export default function FeeListPage() {
 
   return (
     <div className="flex h-screen bg-background">
+      <Head>
+        <title>Interest Fees List - GloryHouseCoop</title>
+      </Head>
       <Sidebar />
       <MobileHeader title="Interest Fee Management" onBack={() => router.back()} />
       <div className="flex-1 overflow-auto p-8">

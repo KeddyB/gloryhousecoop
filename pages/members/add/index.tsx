@@ -46,6 +46,7 @@ export default function AddMemberPage() {
 }
 
 import { MobileHeader } from "@/components/mobile-header";
+import Head from "next/head";
 
 function AddMemberForm() {
   const router = useRouter();
@@ -214,6 +215,9 @@ function AddMemberForm() {
 
   return (
     <div className="flex h-screen bg-background">
+      <Head>
+        <title>Add New Member - GloryHouseCoop</title>
+      </Head>
       <Sidebar />
       <MobileHeader title="Add New Member" onBack={() => router.back()} />
       <div className="flex-1 overflow-auto">

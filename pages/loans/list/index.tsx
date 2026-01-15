@@ -39,6 +39,7 @@ import { toast } from "sonner";
 import { Loan, LoanState } from "@/lib/types/loans";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import Head from "next/head";
 
 export default function LoanListPage() {
   const router = useRouter();
@@ -175,6 +176,9 @@ export default function LoanListPage() {
 
   return (
     <div className="flex h-screen bg-background">
+      <Head>
+        <title>Loans List - GloryHouseCoop</title>
+      </Head>
       <Sidebar />
       <MobileHeader title="Loan Management" onBack={() => router.back()} />
       <div className="flex-1 overflow-auto">
