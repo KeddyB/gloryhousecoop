@@ -55,6 +55,11 @@ interface InterestPayment {
   payment_date: string;
 }
 
+interface Repayment {
+  id: string;
+  amount_paid: number;
+}
+
 interface LoanWithMember {
   id: string;
   loan_amount: number;
@@ -72,6 +77,7 @@ interface LoanWithMember {
     avatar_url?: string;
   };
   interest_payments: InterestPayment[];
+  repayments: Repayment[];
   disbursements?: { created_at: string }[];
 }
 
@@ -113,6 +119,22 @@ export default function InterestFeeEntryPage() {
       return addMonths(startDate, loan.tenure);
     },
     [getLoanStartDate]
+  );
+
+  const calculateOutstandingBalance = useCallback((loan: LoanWithMember) => {
+    const totalRepaid = loan.repayments.reduce(
+      (acc, p) => acc + p.amount_paid,
+      0
+    );
+    return loan.loan_amount - totalRepaid;
+  }, []);
+
+  const calculateInterest = useCallback(
+    (loan: LoanWithMember) => {
+      const outstandingBalance = calculateOutstandingBalance(loan);
+      return (outstandingBalance * loan.interest_rate) / 100;
+    },
+    [calculateOutstandingBalance]
   );
 
   const getUnpaidMonths = useCallback(
@@ -203,7 +225,7 @@ export default function InterestFeeEntryPage() {
       const startOfThisMonth = startOfMonth(today);
 
       loanData.forEach((loan) => {
-        const monthlyInterest = (loan.loan_amount * loan.interest_rate) / 100;
+        const monthlyInterest = calculateInterest(loan);
         const loanStart = getLoanStartDate(loan);
         const loanEnd = getLoanEndDate(loan);
 
@@ -238,7 +260,7 @@ export default function InterestFeeEntryPage() {
       setThisMonthCollection(monthSum);
       setTotalPending(pendingSum);
     },
-    [getLoanStartDate, getLoanEndDate]
+    [getLoanStartDate, getLoanEndDate, calculateInterest]
   );
 
   const fetchData = useCallback(async () => {
@@ -268,6 +290,10 @@ export default function InterestFeeEntryPage() {
             payment_for_month,
             payment_date
           ),
+          repayments (
+            id,
+            amount_paid
+          ),
           disbursements (
             created_at
           )
@@ -280,11 +306,13 @@ export default function InterestFeeEntryPage() {
 
       type RawLoan = Omit<LoanWithMember, "member"> & {
         member: LoanWithMember["member"] | LoanWithMember["member"][] | null;
+        repayments: Repayment[];
       };
 
       const transformedData = ((data as RawLoan[]) || []).map((loan) => ({
         ...loan,
         member: Array.isArray(loan.member) ? loan.member[0] : loan.member,
+        repayments: loan.repayments || [],
       }));
 
       setLoans(transformedData as LoanWithMember[]);
@@ -299,7 +327,7 @@ export default function InterestFeeEntryPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [calculateStats, supabase, toast]);
+  }, [calculateStats, supabase, toast, calculateOutstandingBalance]);
 
   useEffect(() => {
     fetchData();
@@ -325,8 +353,7 @@ export default function InterestFeeEntryPage() {
         user?.user_metadata?.name ||
         user?.email ||
         "System";
-      const monthlyInterest =
-        (selectedLoan.loan_amount * selectedLoan.interest_rate) / 100;
+      const monthlyInterest = calculateInterest(selectedLoan);
 
       const payments = selectedMonths.map((month) => ({
         loan_id: selectedLoan.id,
@@ -658,12 +685,7 @@ export default function InterestFeeEntryPage() {
                         Interest Fee Amount (Per Month)
                       </label>
                       <div className="h-12 bg-muted/50 border border-border rounded-lg flex items-center px-4 text-sm font-semibold w-full">
-                        ₦
-                        {(
-                          (selectedLoan.loan_amount *
-                            selectedLoan.interest_rate) /
-                          100
-                        ).toLocaleString()}
+                        ₦{calculateInterest(selectedLoan).toLocaleString()}
                       </div>
                     </div>
 
@@ -712,21 +734,14 @@ export default function InterestFeeEntryPage() {
                           ₦
                           {selectedMonths.length > 0
                             ? (
-                                selectedMonths.length *
-                                ((selectedLoan.loan_amount *
-                                  selectedLoan.interest_rate) /
-                                  100)
+                                selectedMonths.length * calculateInterest(selectedLoan)
                               ).toLocaleString()
                             : "0"}
                         </span>
                       </div>
                       <p className="text-sm text-muted-foreground">
                         {selectedMonths.length} month(s) × ₦
-                        {(
-                          (selectedLoan.loan_amount *
-                            selectedLoan.interest_rate) /
-                          100
-                        ).toLocaleString()}
+                        {calculateInterest(selectedLoan).toLocaleString()}
                       </p>
                     </div>
 
