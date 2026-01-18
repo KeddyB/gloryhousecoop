@@ -11,6 +11,50 @@ import { createClient } from "@/utils/supabase/client"
 
 import { Skeleton } from "@/components/ui/skeleton"
 
+interface Repayment {
+  id: string;
+  amount_paid: number;
+}
+
+interface LoanWithMember {
+  id: string;
+  loan_amount: number;
+  interest_rate: number;
+  tenure: number;
+  created_at: string;
+  disbursed_at?: string;
+  state: string;
+  member_id: string; // Add member_id for direct access if needed, though 'member' object usually has it
+  repayments: Repayment[]; // Array of repayment objects
+  disbursements?: { created_at: string }[];
+}
+
+interface LoanWithMember {
+  id: string;
+  loan_amount: number;
+  interest_rate: number;
+  tenure: number;
+  created_at: string;
+  disbursed_at?: string;
+  state: string;
+  member_id: string; // Add member_id for direct access if needed, though 'member' object usually has it
+  repayments: Repayment[]; // Array of repayment objects
+  disbursements?: { created_at: string }[];
+}
+
+const calculateOutstandingBalance = (loan: LoanWithMember): number => {
+  const totalRepaid = (loan.repayments || []).reduce(
+    (acc, p) => acc + p.amount_paid,
+    0
+  );
+  return loan.loan_amount - totalRepaid;
+};
+
+const calculateInterest = (loan: LoanWithMember): number => {
+  const outstandingBalance = calculateOutstandingBalance(loan);
+  return (outstandingBalance * loan.interest_rate) / 100;
+};
+
 export function DashboardContent() {
   const [totalMembers, setTotalMembers] = useState("...")
   const [newMembersText, setNewMembersText] = useState("...")
@@ -90,14 +134,19 @@ export function DashboardContent() {
       // Calculate Total Profit Expected (Monthly interest expected for the current month)
       const { data: allLoansDataWithDates, error: allLoansWithDatesError } = await supabase
         .from('loans')
-        .select('loan_amount, interest_rate, created_at, disbursements(created_at), tenure')
+        .select('id, loan_amount, interest_rate, created_at, disbursements(created_at), tenure, repayments(amount_paid)')
         .or('state.eq.active,state.eq.disbursed')
+
+      const allLoans: LoanWithMember[] = (allLoansDataWithDates || []).map(loan => ({
+        ...loan,
+        repayments: loan.repayments || [],
+      })) as LoanWithMember[];
 
       let expectedMonthlyInterestSum = 0
       const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1) // Start of the current calendar month
 
-      if (allLoansDataWithDates) {
-        allLoansDataWithDates.forEach((loan) => {
+      if (allLoans) {
+        allLoans.forEach((loan) => {
           const disbursedDateStr = loan.disbursements?.[0]?.created_at || loan.created_at;
           const loanStartDate = new Date(disbursedDateStr); // Actual start date of the loan
 
@@ -106,13 +155,12 @@ export function DashboardContent() {
           // Check if the current month falls within the active period of the loan
           // and if a payment is expected for this specific month
           const firstDayOfLoanMonth = new Date(loanStartDate.getFullYear(), loanStartDate.getMonth(), 1);
-          const lastDayOfLoanMonth = new Date(loanStartDate.getFullYear(), loanStartDate.getMonth() + 1, 0);
 
           if (
               currentMonthStart >= firstDayOfLoanMonth &&
               currentMonthStart <= loanEndDate
           ) {
-              const monthlyInterest = (loan.loan_amount * loan.interest_rate) / 100;
+              const monthlyInterest = calculateInterest(loan);
               expectedMonthlyInterestSum += monthlyInterest;
           }
         });
