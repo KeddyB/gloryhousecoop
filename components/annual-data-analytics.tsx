@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { createClient } from "@/utils/supabase/client"
-import { format, subDays, startOfYear, subYears, differenceInDays, addDays } from "date-fns"
+import { format, subDays, startOfYear, subYears, differenceInDays, addDays, eachMonthOfInterval } from "date-fns"
 import {
   Bar,
   BarChart,
@@ -46,6 +46,8 @@ type FetchedItem = {
   amount_paid?: number
 }
 
+import { useIsMobile } from "@/hooks/use-mobile"
+
 interface QueryBuilder<T> {
   gte(column: string, value: string): QueryBuilder<T>
   lte(column: string, value: string): QueryBuilder<T>
@@ -58,6 +60,7 @@ interface QueryBuilder<T> {
 
 
 export function AnnualDataAnalytics() {
+  const isMobile = useIsMobile()
   const [period, setPeriod] = React.useState<Period>("month")
   const [isCustomRange, setIsCustomRange] = React.useState(false)
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>({
@@ -74,7 +77,6 @@ export function AnnualDataAnalytics() {
 
   const handleDateChange = (newDateRange: DateRange | undefined) => {
     setDateRange(newDateRange)
-    setPeriod("custom")
     setIsCustomRange(true)
   }
 
@@ -85,7 +87,7 @@ export function AnnualDataAnalytics() {
     setIsCustomRange(false)
     const now = new Date()
     if (p === "day") {
-      setDateRange({ from: subDays(now, 30), to: now })
+      setDateRange({ from: subDays(now, isMobile ? 10 : 30), to: now })
     } else if (p === "month") {
       setDateRange({ from: startOfYear(now), to: now })
     } else if (p === "year") {
@@ -124,17 +126,22 @@ export function AnnualDataAnalytics() {
 
         // Initialize buckets
         if (period === "day") {
-          for (let i = 29; i >= 0; i--) {
+          const daysToDisplay = isMobile ? 9 : 29
+          for (let i = daysToDisplay; i >= 0; i--) {
             const d = subDays(now, i)
             const key = format(d, "MMM dd")
             dataMap.set(key, { name: key, interestIncome: 0, disbursement: 0, repayment: 0 })
           }
         } else if (period === "month") {
-          for (let i = 0; i < 12; i++) {
-            const d = new Date(now.getFullYear(), i, 1)
-            const key = format(d, "MMM")
-            dataMap.set(key, { name: key, interestIncome: 0, disbursement: 0, repayment: 0 })
-          }
+            const months = eachMonthOfInterval({
+                start: dateRange?.from || startOfYear(now),
+                end: dateRange?.to || now
+            });
+
+            for (const month of months) {
+                const key = format(month, "MMM")
+                dataMap.set(key, { name: key, interestIncome: 0, disbursement: 0, repayment: 0 })
+            }
         } else if (period === "year") {
           for (let i = 4; i >= 0; i--) {
             const d = subYears(now, i)
