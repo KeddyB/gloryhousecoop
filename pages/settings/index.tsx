@@ -419,7 +419,14 @@ export default function SettingsPage() {
                   </div>
                 </CardContent>
               </Card>
-            <AnnualDataAnalytics />
+            <Card className="mt-8">
+              <CardHeader>
+                <CardTitle>Loan and Interest Analytics</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AnnualDataAnalytics />
+              </CardContent>
+            </Card>
             </TabsContent>
           </Tabs>
         </div>

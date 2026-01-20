@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { createClient } from "@/utils/supabase/client"
-import { format, subDays, startOfYear, subYears, differenceInDays, addDays, eachMonthOfInterval } from "date-fns"
+import { format, subDays, startOfYear, subYears, differenceInDays, addDays, eachMonthOfInterval, startOfDay, endOfDay } from "date-fns"
 import {
   Bar,
   BarChart,
@@ -29,6 +29,8 @@ import {
 } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DatePickerWithRange } from "./ui/date-range-picker"
+import { DatePicker } from "./ui/date-picker"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 type ChartData = {
   name: string
@@ -45,8 +47,6 @@ type FetchedItem = {
   amount?: number
   amount_paid?: number
 }
-
-import { useIsMobile } from "@/hooks/use-mobile"
 
 interface QueryBuilder<T> {
   gte(column: string, value: string): QueryBuilder<T>
@@ -67,13 +67,14 @@ export function AnnualDataAnalytics() {
     from: startOfYear(new Date()),
     to: new Date(),
   })
+  const [singleDate, setSingleDate] = React.useState<Date | undefined>(new Date())
   const [data, setData] = React.useState<ChartData[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [selectedPoint, setSelectedPoint] = React.useState<ChartData | null>(null)
 
   React.useEffect(() => {
     setSelectedPoint(null)
-  }, [period, dateRange])
+  }, [period, dateRange, singleDate])
 
   const handleDateChange = (newDateRange: DateRange | undefined) => {
     setDateRange(newDateRange)
@@ -86,9 +87,8 @@ export function AnnualDataAnalytics() {
     setPeriod(p)
     setIsCustomRange(false)
     const now = new Date()
-    if (p === "day") {
-      setDateRange({ from: subDays(now, isMobile ? 10 : 30), to: now })
-    } else if (p === "month") {
+    // No date change needed when switching TO 'day'
+    if (p === "month") {
       setDateRange({ from: startOfYear(now), to: now })
     } else if (p === "year") {
       setDateRange({ from: subYears(now, 5), to: now })
@@ -102,9 +102,16 @@ export function AnnualDataAnalytics() {
         const supabase = createClient()
         const now = new Date()
 
-        // Default to current year if range is undefined
-        const startDate = dateRange?.from || startOfYear(now)
-        const endDate = dateRange?.to || now
+        let startDate: Date
+        let endDate: Date
+
+        if (period === "day") {
+          startDate = startOfDay(singleDate || now)
+          endDate = endOfDay(singleDate || now)
+        } else {
+          startDate = dateRange?.from || startOfYear(now)
+          endDate = dateRange?.to || now
+        }
 
         const isoDate = startDate.toISOString()
         const isoEndDate = endDate.toISOString()
@@ -126,12 +133,8 @@ export function AnnualDataAnalytics() {
 
         // Initialize buckets
         if (period === "day") {
-          const daysToDisplay = isMobile ? 9 : 29
-          for (let i = daysToDisplay; i >= 0; i--) {
-            const d = subDays(now, i)
-            const key = format(d, "MMM dd")
-            dataMap.set(key, { name: key, interestIncome: 0, disbursement: 0, repayment: 0 })
-          }
+          const key = format(singleDate || now, "MMM dd")
+          dataMap.set(key, { name: key, interestIncome: 0, disbursement: 0, repayment: 0 })
         } else if (period === "month") {
             const months = eachMonthOfInterval({
                 start: dateRange?.from || startOfYear(now),
@@ -186,19 +189,21 @@ export function AnnualDataAnalytics() {
     }
 
     fetchData()
-  }, [period, dateRange])
+  }, [period, dateRange, singleDate])
 
   // Find the data point that corresponds to the current date/month/year
   const currentData = React.useMemo(() => {
     if (data.length === 0) return null
     const now = new Date()
     let key = ""
-    if (period === "day") key = format(now, "MMM dd")
+    if (period === "day") {
+      return data.length > 0 ? data[0] : null
+    }
     if (period === "month") key = format(now, "MMM")
     if (period === "year") key = format(now, "yyyy")
 
     return data.find((d) => d.name === key) || data[data.length - 1]
-  }, [data, period])
+  }, [data, period, singleDate])
 
   const displayData = selectedPoint || currentData || { name: "", interestIncome: 0, disbursement: 0, repayment: 0 }
 
@@ -226,7 +231,11 @@ export function AnnualDataAnalytics() {
               <TabsTrigger value="year">Yearly</TabsTrigger>
             </TabsList>
           </Tabs>
-          <DatePickerWithRange date={dateRange} setDate={handleDateChange} />
+          {period === "day" ? (
+            <DatePicker date={singleDate} setDate={setSingleDate} />
+          ) : (
+            <DatePickerWithRange date={dateRange} setDate={handleDateChange} />
+          )}
         </div>
       </div>
 
@@ -346,4 +355,5 @@ export function AnnualDataAnalytics() {
       </Card>
     </div>
   )
-}                  
+}
+                  
