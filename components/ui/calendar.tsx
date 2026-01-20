@@ -2,7 +2,8 @@
 
 import * as React from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { DayPicker } from 'react-day-picker'
+import { DayPicker, CaptionProps, useNavigation } from 'react-day-picker'
+import { format, startOfMonth, endOfMonth } from "date-fns";
 
 import { cn } from '@/lib/utils'
 import { buttonVariants } from '@/components/ui/button'
@@ -15,6 +16,56 @@ function Calendar({
   showOutsideDays = true,
   ...props
 }: CalendarProps) {
+
+  const handleMonthCaptionClick = (month: Date) => {
+    if (props.mode === 'range' && props.onSelect) {
+      const onSelectAsRange = props.onSelect as (date: { from: Date, to: Date } | undefined) => void;
+      onSelectAsRange({
+        from: startOfMonth(month),
+        to: endOfMonth(month),
+      });
+    }
+  };
+
+  function CustomCaption({ displayMonth }: CaptionProps) {
+    const { goToMonth, nextMonth, previousMonth } = useNavigation();
+    
+    return (
+      <div className="flex justify-center pt-1 relative items-center">
+        <button
+            disabled={!previousMonth}
+            onClick={() => previousMonth && goToMonth(previousMonth)}
+            className={cn(
+                buttonVariants({ variant: 'outline' }),
+                'h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100',
+                'absolute left-1'
+            )}
+        >
+            <ChevronLeft className="h-4 w-4" />
+        </button>
+        
+        <div 
+          className="text-sm font-medium cursor-pointer hover:text-primary"
+          onClick={() => handleMonthCaptionClick(displayMonth)}
+        >
+          {format(displayMonth, "MMMM yyyy")}
+        </div>
+        
+        <button
+            disabled={!nextMonth}
+            onClick={() => nextMonth && goToMonth(nextMonth)}
+            className={cn(
+                buttonVariants({ variant: 'outline' }),
+                'h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100',
+                'absolute right-1'
+            )}
+        >
+            <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
@@ -22,15 +73,7 @@ function Calendar({
       classNames={{
         months: 'flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0',
         month: 'space-y-4',
-        caption: 'flex justify-center pt-1 relative items-center',
-        caption_label: 'text-sm font-medium',
-        nav: 'space-x-1 flex items-center',
-        nav_button: cn(
-          buttonVariants({ variant: 'outline' }),
-          'h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100'
-        ),
-        nav_button_previous: 'absolute left-1',
-        nav_button_next: 'absolute right-1',
+        // caption styles are now controlled by CustomCaption
         table: 'w-full border-collapse space-y-1',
         head_row: 'flex',
         head_cell:
@@ -54,8 +97,7 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        IconLeft: () => <ChevronLeft className="h-4 w-4" />,
-        IconRight: () => <ChevronRight className="h-4 w-4" />,
+        Caption: CustomCaption,
       }}
       {...props}
     />
