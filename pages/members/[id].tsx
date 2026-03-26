@@ -1332,7 +1332,7 @@ export default function MemberProfile() {
                             key={loan.id}
                             className={index > 0 ? "pt-4 border-t" : ""}
                           >
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-3 gap-4">
                               <div>
                                 <p className="text-xs text-muted-foreground">
                                   Full Name
@@ -1347,6 +1347,14 @@ export default function MemberProfile() {
                                 </p>
                                 <p className="text-sm font-medium">
                                   {loan.third_party_number || "N/A"}
+                                </p>
+                              </div>
+                              <div className="col-span-1">
+                                <p className="text-xs text-muted-foreground">
+                                  Amount Borrowed
+                                </p>
+                                <p className="text-sm font-medium">
+                                  ₦{(loan.loan_amount ?? 0).toLocaleString()}
                                 </p>
                               </div>
                             </div>
