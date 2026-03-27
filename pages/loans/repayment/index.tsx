@@ -65,7 +65,6 @@ export default function RepaymentPage() {
     if (error) {
       toast.error(`Error fetching repayments: ${error.message}`);
     } else {
-      console.log("summaries>>>>>>", data);
       setSummaries(data || []);
     }
     setIsLoading(false);

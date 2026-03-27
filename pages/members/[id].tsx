@@ -1316,7 +1316,7 @@ export default function MemberProfile() {
                   </CardContent>
                 </Card>
 
-                {activeLoans.some((l: Loan) => l.third_party_name) && (
+                {loanHistory.some((l: Loan) => l.third_party_name) && (
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-base flex items-center gap-2">
@@ -1325,41 +1325,60 @@ export default function MemberProfile() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      {activeLoans
+                      {loanHistory
                         .filter((l: Loan) => l.third_party_name)
-                        .map((loan: Loan, index: number) => (
-                          <div
-                            key={loan.id}
-                            className={index > 0 ? "pt-4 border-t" : ""}
-                          >
-                            <div className="grid grid-cols-3 gap-4">
-                              <div>
-                                <p className="text-xs text-muted-foreground">
-                                  Full Name
-                                </p>
-                                <p className="text-sm font-medium">
-                                  {loan.third_party_name}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-muted-foreground">
-                                  Phone Number
-                                </p>
-                                <p className="text-sm font-medium">
-                                  {loan.third_party_number || "N/A"}
-                                </p>
-                              </div>
-                              <div className="col-span-1">
-                                <p className="text-xs text-muted-foreground">
-                                  Amount Borrowed
-                                </p>
-                                <p className="text-sm font-medium">
-                                  ₦{(loan.loan_amount ?? 0).toLocaleString()}
-                                </p>
+                        .map((loan: Loan, index: number) => {
+                          const loanAmount = loan.loan_amount ?? 0;
+                          const amountPaid = loan.repayments
+                            ? loan.repayments.reduce(
+                                (acc: number, curr: Repayment) =>
+                                  acc + (curr.amount_paid ?? 0),
+                                0
+                              )
+                            : 0;
+                          const isPaidOff = loanAmount > 0 && amountPaid >= loanAmount;
+
+                          return (
+                            <div
+                              key={loan.id}
+                              className={index > 0 ? "pt-4 border-t" : ""}
+                            >
+                              <div className="grid grid-cols-3 gap-4">
+                                <div>
+                                  <p className="text-xs text-muted-foreground">
+                                    Full Name
+                                  </p>
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-sm font-medium">
+                                      {loan.third_party_name}
+                                    </p>
+                                    {isPaidOff && (
+                                      <Badge className="rounded-full px-2 py-0.5 text-[10px] font-medium bg-green-100 text-green-700 hover:bg-green-100 border-0">
+                                        Paid
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-muted-foreground">
+                                    Phone Number
+                                  </p>
+                                  <p className="text-sm font-medium">
+                                    {loan.third_party_number || "N/A"}
+                                  </p>
+                                </div>
+                                <div className="col-span-1">
+                                  <p className="text-xs text-muted-foreground">
+                                    Amount Borrowed
+                                  </p>
+                                  <p className="text-sm font-medium">
+                                    ₦{(loan.loan_amount ?? 0).toLocaleString()}
+                                  </p>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                     </CardContent>
                   </Card>
                 )}
