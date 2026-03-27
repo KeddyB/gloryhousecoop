@@ -85,7 +85,6 @@ export default function DisbursementPage() {
     if (error) {
       toast.error(`Error fetching loans: ${error.message}`);
     } else {
-      console.log("pending loans>>>>>>>>>>>>>>", data);
       setPendingLoans(data || []);
     }
   }, [supabase]);
@@ -202,7 +201,6 @@ export default function DisbursementPage() {
     });
 
     if (rpcError) {
-      console.log(rpcError);
       toast.error(`Disbursement Failed: ${rpcError.message}`);
     } else {
       toast.success("Loan disbursed successfully");
