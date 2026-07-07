@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { createClient } from "@/utils/supabase/client"
-import { format, subDays, startOfYear, subYears, differenceInDays, addDays, eachMonthOfInterval, startOfDay, endOfDay } from "date-fns"
+import { format, startOfYear, subYears, differenceInDays, addDays, eachMonthOfInterval, startOfDay, endOfDay } from "date-fns"
 import {
   Bar,
   BarChart,
@@ -53,15 +53,17 @@ interface QueryBuilder<T> {
   lte(column: string, value: string): QueryBuilder<T>
   then<TResult1 = { data: T[] | null }, TResult2 = never>(
     onfulfilled?: ((value: { data: T[] | null }) => TResult1 | PromiseLike<TResult1>) | null,
-    onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null,
+    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
   ): PromiseLike<TResult1 | TResult2>
 }
 
 
 
 export function AnnualDataAnalytics() {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const isMobile = useIsMobile()
   const [period, setPeriod] = React.useState<Period>("month")
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isCustomRange, setIsCustomRange] = React.useState(false)
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>({
     from: startOfYear(new Date()),
@@ -203,7 +205,7 @@ export function AnnualDataAnalytics() {
     if (period === "year") key = format(now, "yyyy")
 
     return data.find((d) => d.name === key) || data[data.length - 1]
-  }, [data, period, singleDate])
+  }, [data, period])
 
   const displayData = selectedPoint || currentData || { name: "", interestIncome: 0, disbursement: 0, repayment: 0 }
 

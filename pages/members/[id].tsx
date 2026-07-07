@@ -77,7 +77,6 @@ import { Member } from "@/lib/types/members";
 import {
   Loan,
   Repayment,
-  Disbursement,
   InterestPayment,
 } from "@/lib/types/loans";
 import {
