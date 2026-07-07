@@ -118,6 +118,7 @@ export function DashboardContent() {
         .from('repayments')
         .select('amount_paid')
       
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const repaymentSum = repaymentData?.reduce((sum, item) => sum + (Number(item.amount_paid) || 0), 0) || 0
 
       // Get Total Disbursed (Loans that are not pending/rejected)
@@ -129,10 +130,11 @@ export function DashboardContent() {
         .not('state', 'eq', 'rejected')
         .not('state', 'eq', 'cancelled')
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const disbursedSum = loanData?.reduce((sum, item) => sum + (Number(item.loan_amount) || 0), 0) || 0
 
       // Calculate Total Profit Expected (Monthly interest expected for the current month)
-      const { data: allLoansDataWithDates, error: allLoansWithDatesError } = await supabase
+      const { data: allLoansDataWithDates } = await supabase
         .from('loans')
         .select('id, loan_amount, interest_rate, created_at, disbursements(created_at), tenure, repayments(amount_paid)')
         .or('state.eq.active,state.eq.disbursed')

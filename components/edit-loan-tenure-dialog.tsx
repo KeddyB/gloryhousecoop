@@ -76,9 +76,9 @@ export function EditLoanTenureDialog({
   
         onSuccess()
         onOpenChange(false)
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error("Error updating loan tenure:", error)
-        setError(error.message || "Failed to update loan tenure. Please try again.")
+        setError(error instanceof Error ? error.message : "Failed to update loan tenure. Please try again.")
       } finally {
         setIsSaving(false)
       }

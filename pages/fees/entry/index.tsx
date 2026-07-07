@@ -25,7 +25,6 @@ import {
   Loader2,
   Calendar,
   AlertCircle,
-  CalendarDays,
   Banknote as BanknoteIcon,
   Wallet,
   Check,
@@ -88,6 +87,7 @@ export default function InterestFeeEntryPage() {
   const [loans, setLoans] = useState<LoanWithMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [selectedLoan, setSelectedLoan] = useState<LoanWithMember | null>(null);
 
   // Stats
@@ -327,7 +327,7 @@ export default function InterestFeeEntryPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [calculateStats, supabase, toast, calculateOutstandingBalance]);
+  }, [calculateStats, supabase, toast]);
 
   useEffect(() => {
     fetchData();
@@ -399,14 +399,50 @@ export default function InterestFeeEntryPage() {
       return [selectedLoan];
     }
     const query = searchQuery.toLowerCase();
-    return loans.filter(
-      (l) =>
-        (l.member.full_name || l.member.name || "")
-          .toLowerCase()
-          .includes(query) ||
-        (l.member.member_id || "").toLowerCase().includes(query)
-    );
-  }, [loans, searchQuery, selectedLoan, isMobile]);
+    
+    return loans.filter((l) => {
+      const matchesSearch =
+        (l.member.full_name || l.member.name || "").toLowerCase().includes(query) ||
+        (l.member.member_id || "").toLowerCase().includes(query);
+
+      if (!matchesSearch) return false;
+      if (statusFilter === "all") return true;
+
+      const unpaidMonths = getUnpaidMonths(l);
+      const today = new Date();
+      const loanStart = getLoanStartDate(l);
+      const loanEnd = getLoanEndDate(l);
+
+      const isPaidForCurrentMonth = l.interest_payments.some((p) =>
+        isSameMonth(new Date(p.payment_for_month), today)
+      );
+
+      const isActiveThisMonth =
+        !isBefore(startOfMonth(today), startOfMonth(loanStart)) &&
+        isBefore(startOfMonth(today), loanEnd);
+
+      const hasUnpaid = unpaidMonths.length > 0;
+      const isPending = isActiveThisMonth && !isPaidForCurrentMonth;
+      
+      let status = "paid";
+      if (hasUnpaid) {
+        status = "unpaid";
+      } else if (isPending) {
+        status = "pending";
+      }
+
+      return status === statusFilter;
+    });
+  }, [
+    loans,
+    searchQuery,
+    selectedLoan,
+    isMobile,
+    statusFilter,
+    getUnpaidMonths,
+    getLoanStartDate,
+    getLoanEndDate,
+  ]);
 
   return (
     <div className="flex h-screen bg-background">
@@ -482,14 +518,27 @@ export default function InterestFeeEntryPage() {
                   )}
                 </div>
                 {(!isMobile || !selectedLoan) && (
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search by name, member ID, phone or email..."
-                      className="pl-9 bg-muted/50 border-none h-11"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search by name, member ID..."
+                        className="pl-9 bg-muted/50 border-none h-11"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                    </div>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="w-full sm:w-[130px] h-11 bg-muted/50 border-none">
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        <SelectItem value="paid">Up to date</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="unpaid">Unpaid</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
 
@@ -595,7 +644,7 @@ export default function InterestFeeEntryPage() {
             </Card>
 
             {/* Interest Details Section - Right 5 Cols */}
-            <Card className="w-full lg:w-5/12 border-border shadow-sm bg-card h-fit rounded-xl">
+            <Card className="w-full lg:w-5/12 border-border shadow-sm bg-card h-fit lg:h-[calc(100vh-4rem)] rounded-xl lg:sticky lg:top-0 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               <CardContent className="p-6">
                 <h2 className="text-lg font-semibold mb-6">Interest Details</h2>
                 {selectedLoan ? (

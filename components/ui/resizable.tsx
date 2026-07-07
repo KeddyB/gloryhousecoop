@@ -6,8 +6,11 @@ import * as ResizablePrimitive from 'react-resizable-panels'
 
 import { cn } from '@/lib/utils'
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const PanelGroup = (ResizablePrimitive as any).PanelGroup
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const Panel = (ResizablePrimitive as any).Panel
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const PanelResizeHandle = (ResizablePrimitive as any).PanelResizeHandle
 
 function ResizablePanelGroup({

@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useLayoutEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { createClient } from "@/utils/supabase/client"
 import {
   ChevronDown,
@@ -17,7 +18,6 @@ import {
   Plus,
   List,
   RotateCcw,
-  Calculator,
   WalletCards,
   X,
 } from "lucide-react"
@@ -192,7 +192,7 @@ export function Sidebar() {
           <div className={`flex items-center ${isOpen ? "justify-between" : "justify-center"}`}>
             {isOpen && (
               <div className="flex items-center gap-3">
-                <img src="/favicon.ico" alt="Glory House Logo" className="w-13 h-13 rounded-full" />
+                <Image src="/favicon.ico" alt="Glory House Logo" width={52} height={52} className="w-13 h-13 rounded-full" />
                 <div className="flex-1">
                   <h1 className="text-xl font-semibold text-foreground">Glory House</h1>
                   <p className="text-xs text-muted-foreground">Multipurpose cooperative society limited</p>
